@@ -94,8 +94,14 @@
                          (let* ([list1 (alist (int 1) (int 2))]
                                 [e (apair (int 4) list1)])
                            (check-equal? (int 4) (eval-exp (fst e)))
-                           (check-equal? list1 (eval-exp (snd e)))
+                           (check-equal? (int 1) (eval-exp (fst (snd e))))
                            )
+                         )
+
+              (test-case "isaunit"
+                         (let ([p (apair (int 4) (aunit))])
+                           (check-equal? (int 1) (eval-exp (isaunit (snd p))))
+                           (check-equal? (int 0) (eval-exp (isaunit (fst p)))))
                          )
               )
   )

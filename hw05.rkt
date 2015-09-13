@@ -74,6 +74,11 @@
         [(fun? e)
          (closure env e)]
 
+        [(isaunit? e)
+         (if (aunit? (eval-exp (isaunit-e e)))
+             (int 1)
+             (int 0))]
+
         ;; eval each parts of a apair to val
         [(apair? e)
          (apair (eval-under-env (apair-e1 e) env)
