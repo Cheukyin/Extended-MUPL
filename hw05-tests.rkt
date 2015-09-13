@@ -20,34 +20,45 @@
                           )
 
                          (check-equal?
-                          (apair (apair 3
-                                        (apair 4
-                                               (apair (apair 5 (apair 9 (aunit)))
+                          (apair (apair (int 3)
+                                        (apair (int 4)
+                                               (apair (apair (int 5) (apair (int 9) (aunit)))
                                                       (aunit))))
-                                 (apair 6
-                                        (apair (apair 0
-                                                      (apair (apair 2
-                                                                    (apair (apair 3 (apair 8 (aunit)))
+                                 (apair (int 6)
+                                        (apair (apair (int 0)
+                                                      (apair (apair (int 2)
+                                                                    (apair (apair (int 3) (apair (int 8) (aunit)))
                                                                            (aunit)))
                                                              (aunit)))
                                                (aunit)
                                                )
                                         )
                                  )
-                          (racketlist->mupllist (list (list 3 4 (list 5 9))
-                                                      6
-                                                      (list 0 (list 2 (list 3 8)))))
+                          (racketlist->mupllist (list (list (int 3) (int 4) (list (int 5) (int 9)))
+                                                      (int 6)
+                                                      (list (int 0) (list (int 2) (list (int 3) (int 8))))))
                           )
                          )
 
               (test-case "mupllist->racketlist"
-                         (let ( (racklist (list (list 3 4 (list 5 9))
-                                                6
-                                                (list 0 (list 2 (list 3 8)))))
+                         (let ( (racklist (list (list (int 3) (int 4) (list (int 5) (int 9)))
+                                                (int 6)
+                                                (list (int 0) (list (int 2) (list (int 3) (int 8))))))
                                  )
                            (check-equal? racklist
                                          (mupllist->racketlist (racketlist->mupllist racklist)))
                            )
+                         )
+
+              (test-case "alist"
+                         (check-equal?
+                          (alist (alist (int 3) (int 4) (alist (int 5) (int 9)))
+                                 (int 6)
+                                 (alist (int 0) (alist (int 2) (alist (int 3) (int 8)))))
+                          (racketlist->mupllist (list (list (int 3) (int 4) (list (int 5) (int 9)))
+                                                      (int 6)
+                                                      (list (int 0) (list (int 2) (list (int 3) (int 8)))))
+                                                ))
                          )
               )
   )

@@ -24,7 +24,7 @@
 (define (racketlist->mupllist list)
   (if (null? list)
       (aunit)
-      (apair (let ( (head (car list)) )
+      (apair (let ([ head (car list) ])
               (if (pair? head)
                  (racketlist->mupllist head)
                  head
@@ -37,7 +37,7 @@
 (define (mupllist->racketlist list)
   (if (aunit? list)
       null
-      (cons (let ( (head (apair-e1 list)) )
+      (cons (let ([ head (apair-e1 list) ])
              (if (apair? head)
                  (mupllist->racketlist head)
                  head
@@ -46,6 +46,11 @@
              (mupllist->racketlist (apair-e2 list))
              )
       )
+  )
+
+;; act as list in Racket
+(define (alist . args)
+  (foldr apair (aunit) args)
   )
 
 
