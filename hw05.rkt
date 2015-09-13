@@ -10,7 +10,7 @@
 (struct ifgreater (e1 e2 e3 e4)    #:transparent) ;; if e1 > e2 then e3 else e4
 (struct fun  (nameopt formal body) #:transparent) ;; a recursive(?) 1-argument function
 (struct call (funexp arg)       #:transparent) ;; function call
-(struct mlet (var e body) #:transparent) ;; a local binding (let var = e in body) 
+(struct mlet (var e body) #:transparent) ;; a local binding (let var = e in body), var is a Racket string
 (struct apair (e1 e2)     #:transparent) ;; make a new pair
 (struct fst  (e)    #:transparent) ;; get first part of a pair
 (struct snd  (e)    #:transparent) ;; get second part of a pair
@@ -63,11 +63,15 @@
 
 ;; evaluate e under env
 (define (eval-under-env e env)
+  ;; test if e a basic value( int or aunit or closure? )
+  (define (mvalue? e)
+    (or (int? e) (aunit? e) (closure? e)))
+  
   (cond [(var? e) 
          (envlookup env (var-string e))] ;; lookup var in the env
 
         ;; basic values evaluate to themselves
-        [(or (int? e) (aunit? e) (closure? e))
+        [(mvalue? e)
          e]
 
         ;; lexical scoped function
@@ -136,7 +140,9 @@
 
         ;; mlet
         [(mlet? e)
-         ]
+         (eval-under-env (call (fun #f (mlet-var e) (mlet-body e))
+                               (eval-under-env (mlet-e e) env))
+                         env)]
         
         [#t (error (format "bad MUPL expression: ~v" e))]))
 

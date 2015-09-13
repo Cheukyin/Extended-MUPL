@@ -119,6 +119,20 @@
                                                                     (snd (var "list")))))
                                               (alist (int 1) (int 2) (int 3) (int 2) (int 5) (int 4)))))
                          )
+
+              (test-case "mlet"
+                         (check-equal? (int 8) ;; basic
+                                       (eval-exp (mlet "k" (int 7)
+                                                       (add (int 1) (var "k")))))
+                         (check-equal? (int 10) ;; test recursive
+                                       (eval-exp (mlet "sum-seq" (fun "sum-seq" "n" ;; sum-seq = λn.0+1+...+n
+                                                                      (ifgreater (var "n") (int 0)
+                                                                                 (add (var "n")
+                                                                                      (call (var "sum-seq")
+                                                                                            (add (int -1) (var "n"))))
+                                                                                 (var "n")))
+                                                       (call (var "sum-seq") 4))))
+                         )
               )
   )
   
