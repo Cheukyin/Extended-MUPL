@@ -156,7 +156,25 @@
   (ifgreater (isaunit e1) (int 0)
              e2 e3))
 
-(define (mlet* lstlst e2) "CHANGE")
+;; (mlet* ([var0 val0] ...) body) = (mlet var0 val1 (mlet ...))
+(define-syntax mlet*
+  (syntax-rules ()
+    [(mlet* () body)
+     body]
+    [(mlet* ([var0 val0]
+             [var-rest val-rest] ...)
+            body)
+     (mlet var0 val0
+           (mlet* ([var-rest val-rest] ...)
+                  body))
+     ]))
+
+;(define (mlet* lstlst e2)
+;  (if (null? lstlst)
+;      e2
+;      (let ([hd (car lstlst)])
+;        (mlet (car hd) (eval (cadr hd))
+;              (mlet* (cdr lstlst) e2)))))
 
 (define (ifeq e1 e2 e3 e4) "CHANGE")
 

@@ -144,6 +144,14 @@
                                                           (call (fun #f "" (int 0)) (aunit))
                                                           (call (fun #f "" (int 1)) (aunit)))))
                          )
+
+              (test-case "mlet*"
+                         (check-equal? (int 10)
+                                       (eval-exp (mlet* (["v1" (int 1)]
+                                                         ["v2" (add (var "v1") (int 2))]
+                                                         ["v3" (add (var "v2") (int 3))])
+                                                        (add (add (var "v1") (var "v2"))
+                                                             (var "v3"))))))
               )
   )
   
