@@ -60,6 +60,14 @@
                                                       (list (int 0) (list (int 2) (list (int 3) (int 8)))))
                                                 ))
                          )
+
+              (test-case "eval on value"
+                         (check-equal? (int 4) (eval-exp (int 4)))
+                         (check-equal? (aunit) (eval-exp (aunit)))
+                         (check-equal? (alist (int 4) (int 5)) (eval-exp (alist (int 4) (int 5))))
+                         (check-equal? (alist (int 4) (eval-exp (fun "A" "k" (apair (var "k") (aunit)))))
+                                       (eval-exp (alist (int 4) (fun "A" "k" (alist (var "k") )))))
+                         )
               )
   )
   

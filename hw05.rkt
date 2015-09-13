@@ -54,22 +54,27 @@
   )
 
 
-;; Problem 2
 
 ;; lookup a variable in an environment
-;; Do NOT change this function
 (define (envlookup env str)
   (cond [(null? env) (error "unbound variable during evaluation" str)]
         [(equal? (car (car env)) str) (cdr (car env))]
         [#t (envlookup (cdr env) str)]))
 
-;; Do NOT change the two cases given to you.  
-;; DO add more cases for other kinds of MUPL expressions.
-;; We will test eval-under-env by calling it directly even though
-;; "in real life" it would be a helper function of eval-exp.
 (define (eval-under-env e env)
   (cond [(var? e) 
          (envlookup env (var-string e))]
+        
+        [(or (int? e) (aunit? e) (closure? e))
+         e]
+        
+        [(fun? e)
+         (closure env e)]
+        
+        [(apair? e)
+         (apair (eval-under-env (apair-e1 e) env)
+                (eval-under-env (apair-e2 e) env))]
+        
         [(add? e) 
          (let ([v1 (eval-under-env (add-e1 e) env)]
                [v2 (eval-under-env (add-e2 e) env)])
@@ -78,7 +83,8 @@
                (int (+ (int-num v1) 
                        (int-num v2)))
                (error "MUPL addition applied to non-number")))]
-        ;; CHANGE add more cases here
+        
+        
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
 ;; Do NOT change
