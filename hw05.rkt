@@ -75,7 +75,7 @@
          (closure env e)]
 
         [(isaunit? e)
-         (if (aunit? (eval-exp (isaunit-e e)))
+         (if (aunit? (eval-under-env (isaunit-e e) env))
              (int 1)
              (int 0))]
 
