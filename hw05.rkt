@@ -63,18 +63,22 @@
 
 (define (eval-under-env e env)
   (cond [(var? e) 
-         (envlookup env (var-string e))]
-        
+         (envlookup env (var-string e))] ;; lookup var in the env
+
+        ;; basic values evaluate to themselves
         [(or (int? e) (aunit? e) (closure? e))
          e]
-        
+
+        ;; lexical scoped function
         [(fun? e)
          (closure env e)]
-        
+
+        ;; eval each parts of a apair to val
         [(apair? e)
          (apair (eval-under-env (apair-e1 e) env)
                 (eval-under-env (apair-e2 e) env))]
-        
+
+        ;; (add e1 e2) = e1 + e2 iff e1 and e2 are int type
         [(add? e) 
          (let ([v1 (eval-under-env (add-e1 e) env)]
                [v2 (eval-under-env (add-e2 e) env)])
@@ -83,6 +87,18 @@
                (int (+ (int-num v1) 
                        (int-num v2)))
                (error "MUPL addition applied to non-number")))]
+
+        ;; (ifgreater e1 e2 e3 e4), eval e1 and e2 first, if e1 and e2 are int type, ...
+        [(ifgreater? e)
+         (let ([v1 (eval-under-env (ifgreater-e1 e) env)]
+               [v2 (eval-under-env (ifgreater-e2 e) env)])
+           (if (and (int? v1) (int? v2))
+               (if (> (int-num v1) (int-num v2))
+                   (eval-under-env (ifgreater-e3 e) env)
+                   (eval-under-env (ifgreater-e4 e) env))
+               (error "MUPL ifgreater applied to non-number"))
+             )
+         ]
         
         
         [#t (error (format "bad MUPL expression: ~v" e))]))

@@ -61,7 +61,7 @@
                                                 ))
                          )
 
-              (test-case "eval on value"
+              (test-case "eval on values"
                          (check-equal? (int 4) (eval-exp (int 4)))
                          (check-equal? (aunit) (eval-exp (aunit)))
                          (check-equal? (alist (int 4) (int 5)) (eval-exp (alist (int 4) (int 5))))
@@ -74,6 +74,20 @@
                            (check-equal? (eval-under-env (var "v2") env) (aunit))
                            (check-equal? (eval-under-env (var "v3") env) (int 3))
                            )
+                         )
+
+              (test-case "add"
+                         (check-equal? (int 5) (eval-exp (add (int 1) (int 4))))
+                         )
+
+              (test-case "ifgreater"
+                         (let ([e1 (add (int 2) (int 3))]
+                               [e2 (int 8)]
+                               [e3 (fun "A" "k" (aunit))]
+                               [e4 (add (int 4) (int 5))])
+                           (check-equal? (int 9) (eval-exp (ifgreater e1 e2 e3 e4)))
+                           (check-equal? (eval-exp e3) (eval-exp (ifgreater e1 e2 e3 e4)))
+                             )
                          )
               )
   )
