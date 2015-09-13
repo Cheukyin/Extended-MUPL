@@ -20,7 +20,7 @@
 ;; a closure is not in "source" programs; it is what functions evaluate to
 (struct closure (env fun) #:transparent)
 
-
+;; convert racketlist to mupllist
 (define (racketlist->mupllist list)
   (if (null? list)
       (aunit)
@@ -34,6 +34,7 @@
       )
   )
 
+;; convert mupllist to racketlist
 (define (mupllist->racketlist list)
   (if (aunit? list)
       null
@@ -50,8 +51,7 @@
 
 ;; act as list in Racket
 (define (alist . args)
-  (foldr apair (aunit) args)
-  )
+  (foldr apair (aunit) args))
 
 
 
@@ -61,6 +61,7 @@
         [(equal? (car (car env)) str) (cdr (car env))]
         [#t (envlookup (cdr env) str)]))
 
+;; evaluate e under env
 (define (eval-under-env e env)
   (cond [(var? e) 
          (envlookup env (var-string e))] ;; lookup var in the env
@@ -77,6 +78,20 @@
         [(apair? e)
          (apair (eval-under-env (apair-e1 e) env)
                 (eval-under-env (apair-e2 e) env))]
+
+        [(fst? e)
+         (let ([v (eval-under-env (fst-e e) env)])
+           (if (apair? v)
+               (apair-e1 v)
+               (error "MUPL fst applied to non-apair"))
+             )]
+
+        [(snd? e)
+         (let ([v (eval-under-env (snd-e e) env)])
+           (if (apair? v)
+               (apair-e2 v)
+               (error "MUPL fst applied to non-apair"))
+             )]
 
         ;; (add e1 e2) = e1 + e2 iff e1 and e2 are int type
         [(add? e) 
@@ -103,7 +118,7 @@
         
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
-;; Do NOT change
+;; evaluate the expression e under the null evn
 (define (eval-exp e)
   (eval-under-env e null))
         

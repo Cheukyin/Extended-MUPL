@@ -86,8 +86,16 @@
                                [e3 (fun "A" "k" (aunit))]
                                [e4 (add (int 4) (int 5))])
                            (check-equal? (int 9) (eval-exp (ifgreater e1 e2 e3 e4)))
-                           (check-equal? (eval-exp e3) (eval-exp (ifgreater e1 e2 e3 e4)))
+                           (check-equal? (eval-exp e3) (eval-exp (ifgreater e2 e1 e3 e4)))
                              )
+                         )
+
+              (test-case "fst && snd"
+                         (let* ([list1 (alist (int 1) (int 2))]
+                                [e (apair (int 4) list1)])
+                           (check-equal? (int 4) (eval-exp (fst e)))
+                           (check-equal? list1 (eval-exp (snd e)))
+                           )
                          )
               )
   )
