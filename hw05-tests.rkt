@@ -69,13 +69,6 @@
                                        (eval-exp (alist (int 4) (fun "A" "k" (alist (var "k") )))))
                          )
 
-              (test-case "envlookup"
-                         (let ([ env (list (cons "v1" (int 1)) (cons "v2" (aunit)) (cons "v3" (int 3))) ])
-                           (check-equal? (eval-under-env (var "v2") env) (aunit))
-                           (check-equal? (eval-under-env (var "v3") env) (int 3))
-                           )
-                         )
-
               (test-case "add"
                          (check-equal? (int 5) (eval-exp (add (int 1) (int 4))))
                          )
@@ -102,6 +95,29 @@
                          (let ([p (apair (int 4) (aunit))])
                            (check-equal? (int 1) (eval-exp (isaunit (snd p))))
                            (check-equal? (int 0) (eval-exp (isaunit (fst p)))))
+                         )
+
+              (test-case "function call"
+                         (check-equal? (int 7) ;; basic
+                                       (eval-exp (call (fun "test" "x" (add (var "x") (int 3)))
+                                                       (int 4))))
+                         (check-equal? (int 10) ;; test lexical binding
+                                       (eval-exp
+                                        (call (fun "test" "y"  ;; λy.(λx.(λy.x+y 3) y) 7
+                                                   (call (fun "tmp1" "x"
+                                                              (call (fun "tmp2" "y"
+                                                                         (add (var "x") (var "y")))
+                                                                    (int 3)))
+                                                         (var "y")))
+                                              (int 7))))
+                         (check-equal? (int 5) ;; test recursive
+                                       (eval-exp
+                                        (call (fun "find-fst-greater-than-3" "list"
+                                                   (ifgreater (fst (var "list")) (int 3)
+                                                              (fst (var "list"))
+                                                              (call (var "find-fst-greater-than-3")
+                                                                    (snd (var "list")))))
+                                              (alist (int 1) (int 2) (int 3) (int 2) (int 5) (int 4)))))
                          )
               )
   )

@@ -9,7 +9,7 @@
 (struct add  (e1 e2)  #:transparent)  ;; add two expressions
 (struct ifgreater (e1 e2 e3 e4)    #:transparent) ;; if e1 > e2 then e3 else e4
 (struct fun  (nameopt formal body) #:transparent) ;; a recursive(?) 1-argument function
-(struct call (funexp actual)       #:transparent) ;; function call
+(struct call (funexp arg)       #:transparent) ;; function call
 (struct mlet (var e body) #:transparent) ;; a local binding (let var = e in body) 
 (struct apair (e1 e2)     #:transparent) ;; make a new pair
 (struct fst  (e)    #:transparent) ;; get first part of a pair
@@ -88,15 +88,13 @@
          (let ([v (eval-under-env (fst-e e) env)])
            (if (apair? v)
                (apair-e1 v)
-               (error "MUPL fst applied to non-apair"))
-             )]
+               (error "MUPL fst applied to non-apair")))]
 
         [(snd? e)
          (let ([v (eval-under-env (snd-e e) env)])
            (if (apair? v)
                (apair-e2 v)
-               (error "MUPL fst applied to non-apair"))
-             )]
+               (error "MUPL fst applied to non-apair")))]
 
         ;; (add e1 e2) = e1 + e2 iff e1 and e2 are int type
         [(add? e) 
@@ -116,10 +114,29 @@
                (if (> (int-num v1) (int-num v2))
                    (eval-under-env (ifgreater-e3 e) env)
                    (eval-under-env (ifgreater-e4 e) env))
-               (error "MUPL ifgreater applied to non-number"))
-             )
+               (error "MUPL ifgreater applied to non-number")))]
+
+        ;; function call
+        [(call? e)
+         (let ([clos (eval-under-env (call-funexp e) env)])
+           (if (closure? clos)
+               (let* ([arg (eval-under-env (call-arg e) env)]
+                      [fn (closure-fun clos)]
+                      [fn-env (closure-env clos)]
+                      [fn-name (fun-nameopt fn)]
+                      [fn-arg-name (fun-formal fn)]
+                      [fn-body (fun-body fn)])
+                 (eval-under-env fn-body
+                                 (cons (cons fn-arg-name arg) ;;extend fn-env, the inner bindings will hide the outer env's
+                                       (if fn-name
+                                           (cons (cons fn-name clos) fn-env) ;;fn-name != #f
+                                           fn-env))))
+               (error "MUPL call applied to non-function")
+               ))]
+
+        ;; mlet
+        [(mlet? e)
          ]
-        
         
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
