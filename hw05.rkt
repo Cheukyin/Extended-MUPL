@@ -49,7 +49,7 @@
       )
   )
 
-;; act as list in Racket
+;; act like list in Racket
 (define (alist . args)
   (foldr apair (aunit) args))
 
@@ -149,10 +149,12 @@
 ;; evaluate the expression e under the null evn
 (define (eval-exp e)
   (eval-under-env e null))
-        
-;; Problem 3
 
-(define (ifaunit e1 e2 e3) "CHANGE")
+
+;; e1 = (aunit), e2; otherwise e3
+(define (ifaunit e1 e2 e3)
+  (ifgreater (isaunit e1) (int 0)
+             e2 e3))
 
 (define (mlet* lstlst e2) "CHANGE")
 
