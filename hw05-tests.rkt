@@ -68,6 +68,13 @@
                          (check-equal? (alist (int 4) (eval-exp (fun "A" "k" (apair (var "k") (aunit)))))
                                        (eval-exp (alist (int 4) (fun "A" "k" (alist (var "k") )))))
                          )
+
+              (test-case "envlookup"
+                         (let ([ env (list (cons "v1" (int 1)) (cons "v2" (aunit)) (cons "v3" (int 3))) ])
+                           (check-equal? (eval-under-env (var "v2") env) (aunit))
+                           (check-equal? (eval-under-env (var "v3") env) (int 3))
+                           )
+                         )
               )
   )
   
