@@ -18,11 +18,36 @@
 (struct isaunit (e) #:transparent) ;; evaluate to 1 if e is unit else 0
 
 ;; a closure is not in "source" programs; it is what functions evaluate to
-(struct closure (env fun) #:transparent) 
+(struct closure (env fun) #:transparent)
 
-;; Problem 1
 
-;; CHANGE (put your solutions here)
+(define (racketlist->mupllist list)
+  (if (null? list)
+      (aunit)
+      (apair (let ( (head (car list)) )
+              (if (pair? head)
+                 (racketlist->mupllist head)
+                 head
+                 )
+              )
+             (racketlist->mupllist (cdr list)))
+      )
+  )
+
+(define (mupllist->racketlist list)
+  (if (aunit? list)
+      null
+      (cons (let ( (head (apair-e1 list)) )
+             (if (apair? head)
+                 (mupllist->racketlist head)
+                 head
+                 )
+              )
+             (mupllist->racketlist (apair-e2 list))
+             )
+      )
+  )
+
 
 ;; Problem 2
 
