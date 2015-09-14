@@ -8,9 +8,8 @@
 (struct int  (num)    #:transparent)  ;; a constant number, e.g., (int 17)
 (struct add  (e1 e2)  #:transparent)  ;; add two expressions
 (struct ifgreater (e1 e2 e3 e4)    #:transparent) ;; if e1 > e2 then e3 else e4
-(struct fun  (nameopt formal body) #:transparent) ;; a recursive(?) 1-argument function
-(struct call (funexp arg)       #:transparent) ;; function call
-(struct mlet (var e body) #:transparent) ;; a local binding (let var = e in body), var is a Racket string
+(struct _fun  (nameopt var-list body) #:transparent) ;; a recursive(?) k-argument function
+(struct _call (funexp val-list)       #:transparent) ;; function call, !!!assume the length of two lists are the same
 (struct apair (e1 e2)     #:transparent) ;; make a new pair
 (struct fst  (e)    #:transparent) ;; get first part of a pair
 (struct snd  (e)    #:transparent) ;; get second part of a pair
@@ -82,7 +81,7 @@
          e]
 
         ;; lexical scoped function
-        [(fun? e)
+        [(_fun? e)
          (closure env e)]
 
         [(isaunit? e)
@@ -128,32 +127,36 @@
                (error "MUPL ifgreater applied to non-number")))]
 
         ;; function call
-        [(call? e)
-         (let ([clos (eval-under-env (call-funexp e) env)])
+        [(_call? e)
+         (let ([clos (eval-under-env (_call-funexp e) env)])
            (if (closure? clos)
-               (let* ([arg (eval-under-env (call-arg e) env)]
+               (let* ([_call-val-list (_call-val-list e)]
                       [fn (closure-fun clos)]
                       [fn-env (closure-env clos)]
-                      [fn-name (fun-nameopt fn)]
-                      [fn-arg-name (fun-formal fn)]
-                      [fn-body (fun-body fn)]
-                      [cur-env (if fn-name
-                                   ;; bind the arg name : arg
-                                   ;; fn-name != #f, bind the function name : function body
-                                   (hash fn-arg-name arg fn-name clos)
-                                   (hash fn-arg-name arg))])
+                      [fn-name (_fun-nameopt fn)]
+                      [fn-var-list (_fun-var-list fn)]
+                      [fn-body (_fun-body fn)]
+                      [cur-env (make-hash)])
                  
-                 (eval-under-env fn-body
-                                 (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's
-                 )
+                 (begin
+                   (if fn-name
+                       (hash-set! cur-env fn-name clos) ;; fn-name != #f, bind the function name : function body
+                       null)
+                   ;; bind the var-val pairs
+                   (letrec ([hash-var-val (λ (var-list val-list) ;; !!!assume the length of two lists are the same
+                                            (if (null? var-list)
+                                                null
+                                                (begin
+                                                  (hash-set! cur-env (car var-list) (eval-under-env (car val-list) env))
+                                                  (hash-var-val (cdr var-list) (cdr val-list)))))])
+                     (hash-var-val fn-var-list _call-val-list)
+                     )
+                   ;; eval the function call
+                  (eval-under-env fn-body
+                                 (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's)
+                 ))
                (error "MUPL call applied to non-function")
                ))]
-
-        ;; mlet
-        [(mlet? e)
-         (eval-under-env (call (fun #f (mlet-var e) (mlet-body e))
-                               (eval-under-env (mlet-e e) env))
-                         env)]
         
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
@@ -167,6 +170,31 @@
   (ifgreater (isaunit e1) (int 0)
              e2 e3))
 
+;; (fun fn-name (var0 ...) body)
+(define-syntax fun
+  (syntax-rules ()
+    [(fun fn-name () body)
+     (_fun fn-name (list "") body)]
+    [(fun fn-name (var0 var-rest ...) body)
+     (_fun fn-name (list var0 var-rest ...) body)]))
+
+;; (call fn val0 val1 ...)
+(define-syntax call
+  (syntax-rules ()
+    [(call fn)
+     (_call fn (list (aunit)))]
+    [(call fn val0 val-rest ...)
+     (_call fn (list val0 val-rest ...))]))
+
+
+;; a local binding (mlet ([var0 val0] ...) body), vark is a Racket string
+(define-syntax mlet
+  (syntax-rules ()
+    [(mlet () body)
+     body]
+    [(mlet ([var0 val0] [var-rest val-rest] ...) body)
+     (call (fun #f (var0 var-rest ...) body) val0 val-rest ...)]))
+
 ;; (mlet* ([var0 val0] ...) body) = (mlet var0 val1 (mlet ...))
 (define-syntax mlet*
   (syntax-rules ()
@@ -175,7 +203,7 @@
     [(mlet* ([var0 val0]
              [var-rest val-rest] ...)
             body)
-     (mlet var0 val0
+     (mlet ([var0 val0])
            (mlet* ([var-rest val-rest] ...)
                   body))
      ]))

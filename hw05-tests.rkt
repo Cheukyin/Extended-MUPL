@@ -75,8 +75,8 @@
                          (check-equal? (int 4) (eval-exp (int 4)))
                          (check-equal? (aunit) (eval-exp (aunit)))
                          (check-equal? (alist (int 4) (int 5)) (eval-exp (alist (int 4) (int 5))))
-                         (check-equal? (alist (int 4) (eval-exp (fun "A" "k" (apair (var "k") (aunit)))))
-                                       (eval-exp (alist (int 4) (fun "A" "k" (alist (var "k") )))))
+                         (check-equal? (alist (int 4) (eval-exp (fun "A" ("k") (apair (var "k") (aunit)))))
+                                       (eval-exp (alist (int 4) (fun "A" ("k") (alist (var "k") )))))
                          )
 
               (test-case "add"
@@ -86,7 +86,7 @@
               (test-case "ifgreater"
                          (let ([e1 (add (int 2) (int 3))]
                                [e2 (int 8)]
-                               [e3 (fun "A" "k" (aunit))]
+                               [e3 (fun "A" ("k") (aunit))]
                                [e4 (add (int 4) (int 5))])
                            (check-equal? (int 9) (eval-exp (ifgreater e1 e2 e3 e4)))
                            (check-equal? (eval-exp e3) (eval-exp (ifgreater e2 e1 e3 e4)))
@@ -109,59 +109,76 @@
 
               (test-case "function call"
                          (check-equal? (int 7) ;; basic
-                                       (eval-exp (call (fun "test" "x" (add (var "x") (int 3)))
+                                       (eval-exp (call (fun "test" ("x") (add (var "x") (int 3)))
                                                        (int 4))))
                          (check-equal? (int 10) ;; test lexical binding
                                        (eval-exp
-                                        (call (fun "test" "y"  ;; λy.(λx.(λy.x+y 3) y) 7
-                                                   (call (fun "tmp1" "x"
-                                                              (call (fun "tmp2" "y"
+                                        (call (fun "test" ("y")  ;; λy.(λx.(λy.x+y 3) y) 7
+                                                   (call (fun "tmp1" ("x")
+                                                              (call (fun "tmp2" ("y")
                                                                          (add (var "x") (var "y")))
                                                                     (int 3)))
                                                          (var "y")))
                                               (int 7))))
                          (check-equal? (int 5) ;; test recursive
                                        (eval-exp
-                                        (call (fun "find-fst-greater-than-3" "list"
+                                        (call (fun "find-fst-greater-than-3" ("list")
                                                    (ifgreater (fst (var "list")) (int 3)
                                                               (fst (var "list"))
                                                               (call (var "find-fst-greater-than-3")
                                                                     (snd (var "list")))))
                                               (alist (int 1) (int 2) (int 3) (int 2) (int 5) (int 4)))))
+                         (check-equal? (int 5) ;; fn without args
+                                       (eval-exp (call (fun #f () (int 5)))))
+                         (check-equal? (int 6) ;; fn with multi-parameter
+                                       (eval-exp (call (fun #f ("v1" "v2" "v3")
+                                                            (add (var "v1") (add (var "v2") (var "v3"))))
+                                                       (int 1) (int 2) (int 3))))
                          )
 
               (test-case "mlet"
                          (check-equal? (int 8) ;; basic
-                                       (eval-exp (mlet "k" (int 7)
+                                       (eval-exp (mlet (["k" (int 7)])
                                                        (add (int 1) (var "k")))))
                          (check-equal? (int 10) ;; test recursive
-                                       (eval-exp (mlet "sum-seq" (fun "sum-seq" "n" ;; sum-seq = λn.0+1+...+n
+                                       (eval-exp (mlet (["sum-seq" (fun "sum-seq" ("n") ;; sum-seq = λn.0+1+...+n
                                                                       (ifgreater (var "n") (int 0)
                                                                                  (add (var "n")
                                                                                       (call (var "sum-seq")
                                                                                             (add (int -1) (var "n"))))
-                                                                                 (var "n")))
+                                                                                 (var "n")))])
                                                        (call (var "sum-seq") (int 4)))))
+                         (check-equal? (int 3) ;; mlet without args
+                                       (eval-exp (mlet () (add (int 1) (int 2)))))
+                         (check-equal? (int 6) ;; mlet with multi-arg
+                                       (eval-exp (mlet (["v1" (int 1)]
+                                                        ["v2" (int 2)]
+                                                        ["v3" (int 3)])
+                                                       (add (var "v1") (add (var "v2") (var "v3"))))))
                          )
 
-              (test-case "ifaunit"
-                         (check-equal? (int 0)
-                                       (eval-exp (ifaunit (snd (apair (int 3) (aunit)))
-                                                          (call (fun #f "" (int 0)) (aunit))
-                                                          (call (fun #f "" (int 1)) (aunit)))))
-                         (check-equal? (int 1)
-                                       (eval-exp (ifaunit (fst (apair (int 3) (aunit)))
-                                                          (call (fun #f "" (int 0)) (aunit))
-                                                          (call (fun #f "" (int 1)) (aunit)))))
-                         )
 
               (test-case "mlet*"
-                         (check-equal? (int 10)
+                         (check-equal? (int 3) ;; mlet* with no args
+                                       (eval-exp (mlet* () (add (int 1) (int 2)))))
+                         (check-equal? (int 10) ;; mlet* with multi-args
                                        (eval-exp (mlet* (["v1" (int 1)]
                                                          ["v2" (add (var "v1") (int 2))]
                                                          ["v3" (add (var "v2") (int 3))])
                                                         (add (add (var "v1") (var "v2"))
-                                                             (var "v3"))))))
+                                                             (var "v3")))))
+                         )
+              
+              (test-case "ifaunit"
+                         (check-equal? (int 0)
+                                       (eval-exp (ifaunit (snd (apair (int 3) (aunit)))
+                                                          (call (fun #f () (int 0)) (aunit))
+                                                          (call (fun #f () (int 1)) (aunit)))))
+                         (check-equal? (int 1)
+                                       (eval-exp (ifaunit (fst (apair (int 3) (aunit)))
+                                                          (call (fun #f () (int 0)) (aunit))
+                                                          (call (fun #f () (int 1)) (aunit)))))
+                         )
               )
   )
   
