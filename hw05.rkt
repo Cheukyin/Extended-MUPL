@@ -1,4 +1,4 @@
-;; Programming Languages, Homework 5
+;; MUPL Interpreter
 
 #lang racket
 (provide (all-defined-out)) ;; so we can put tests in a second file
@@ -54,12 +54,19 @@
   (foldr apair (aunit) args))
 
 
+;; env structure:
+;; each env of the current function is a hash table for storing its own local bindings
+;; and a pointer pointing to its parent's env
+;; hash-table -> hash-tabl -> hash-table -> ... -> null
 
 ;; lookup a variable in an environment
 (define (envlookup env str)
-  (cond [(null? env) (error "unbound variable during evaluation" str)]
-        [(equal? (car (car env)) str) (cdr (car env))]
-        [#t (envlookup (cdr env) str)]))
+  (if (null? env)
+      (error "unbound variable during evaluation" str)
+      (let ([cur-env (car env)])
+        (hash-ref cur-env str
+                  (λ () (envlookup (cdr env) str)))
+        )))
 
 ;; evaluate e under env
 (define (eval-under-env e env)
@@ -129,12 +136,16 @@
                       [fn-env (closure-env clos)]
                       [fn-name (fun-nameopt fn)]
                       [fn-arg-name (fun-formal fn)]
-                      [fn-body (fun-body fn)])
+                      [fn-body (fun-body fn)]
+                      [cur-env (if fn-name
+                                   ;; bind the arg name : arg
+                                   ;; fn-name != #f, bind the function name : function body
+                                   (hash fn-arg-name arg fn-name clos)
+                                   (hash fn-arg-name arg))])
+                 
                  (eval-under-env fn-body
-                                 (cons (cons fn-arg-name arg) ;;extend fn-env, the inner bindings will hide the outer env's
-                                       (if fn-name
-                                           (cons (cons fn-name clos) fn-env) ;;fn-name != #f
-                                           fn-env))))
+                                 (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's
+                 )
                (error "MUPL call applied to non-function")
                ))]
 

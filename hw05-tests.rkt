@@ -61,6 +61,16 @@
                                                 ))
                          )
 
+              (test-case "envlookup"
+                         (let ([ht1 (hash "v1" (int 1) "v2" (int 2))]
+                               [ht2 (hash "v3" (int 3) "v4" (int 4))])                      
+                           (let ([env (list ht1 ht2)])
+                             (check-equal? (int 1) (envlookup env "v1"))
+                             (check-equal? (int 4) (envlookup env "v4"))
+                             )
+                         )
+              )
+
               (test-case "eval on values"
                          (check-equal? (int 4) (eval-exp (int 4)))
                          (check-equal? (aunit) (eval-exp (aunit)))
