@@ -8,16 +8,23 @@
 (struct int  (num)    #:transparent)  ;; a constant number, e.g., (int 17)
 (struct add  (e1 e2)  #:transparent)  ;; add two expressions
 (struct ifgreater (e1 e2 e3 e4)    #:transparent) ;; if e1 > e2 then e3 else e4
-(struct _fun  (nameopt var-list body) #:transparent) ;; a recursive(?) k-argument function
-(struct _call (funexp val-list)       #:transparent) ;; function call, !!!assume the length of two lists are the same
 (struct apair (e1 e2)     #:transparent) ;; make a new pair
 (struct fst  (e)    #:transparent) ;; get first part of a pair
 (struct snd  (e)    #:transparent) ;; get second part of a pair
 (struct aunit ()    #:transparent) ;; unit value -- good for ending a list
 (struct isaunit (e) #:transparent) ;; evaluate to 1 if e is unit else 0
 
+
+;;; used by interpreter program only
+
 ;; a closure is not in "source" programs; it is what functions evaluate to
 (struct closure (env fun) #:transparent)
+;; a recursive(?) k-argument function
+(struct _fun  (nameopt var-list body) #:transparent)
+;; function call, !!!assume the length of two lists are the same
+(struct _call (funexp val-list)       #:transparent)
+;; modify var's binding
+(struct _modify-env (var))
 
 ;; convert racketlist to mupllist
 (define (racketlist->mupllist list)
@@ -64,8 +71,15 @@
       (error "unbound variable during evaluation" str)
       (let ([cur-env (car env)])
         (hash-ref cur-env str
-                  (λ () (envlookup (cdr env) str)))
-        )))
+                  (λ () (envlookup (cdr env) str))))))
+
+;; modify binding of the var
+(define (modify-env env str val)
+  (if (null? env)
+      (error "unbound variable during evaluation" str)
+      (let ([cur-env (car env)])
+        (hash-update! cur-env str (λ (n) val)
+                      (λ () (modify-env (cdr env) str val))))))
 
 ;; evaluate e under env
 (define (eval-under-env e env)
