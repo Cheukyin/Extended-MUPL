@@ -188,10 +188,13 @@
 
 
 ;; a local binding (mlet ([var0 val0] ...) body), vark is a Racket string
+;; named-mlet: (mlet fn-name ([var0 val0] ...) body)
 (define-syntax mlet
   (syntax-rules ()
     [(mlet () body)
      body]
+    [(mlet fn-name ([var0 val0] [var-rest val-rest] ...) body) ;; named-mlet
+     (call (fun fn-name (var0 var-rest ...) body) val0 val-rest ...)]
     [(mlet ([var0 val0] [var-rest val-rest] ...) body)
      (call (fun #f (var0 var-rest ...) body) val0 val-rest ...)]))
 

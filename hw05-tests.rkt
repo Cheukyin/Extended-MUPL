@@ -157,6 +157,18 @@
                                                        (add (var "v1") (add (var "v2") (var "v3"))))))
                          )
 
+              (test-case "named-mlet"
+                         (check-equal? (int 8)
+                                       (eval-exp (call (fun #f ("n")
+                                                            (mlet "fib-iter" (["a" (int 1)]
+                                                                              ["b" (int 0)]
+                                                                              ["count" (var "n")])
+                                                                  (ifgreater (var "count") (int 0)
+                                                                             (call (var "fib-iter")
+                                                                                   (add (var "a") (var "b"))
+                                                                                   (var "a") (add (var "count") (int -1)))
+                                                                             (var "b"))))
+                                                       (int 6)))))
 
               (test-case "mlet*"
                          (check-equal? (int 3) ;; mlet* with no args
@@ -168,7 +180,7 @@
                                                         (add (add (var "v1") (var "v2"))
                                                              (var "v3")))))
                          )
-              
+
               (test-case "ifaunit"
                          (check-equal? (int 0)
                                        (eval-exp (ifaunit (snd (apair (int 3) (aunit)))
