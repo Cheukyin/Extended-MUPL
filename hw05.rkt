@@ -14,6 +14,7 @@
 (struct aunit ()    #:transparent) ;; unit value -- good for ending a list
 (struct isaunit (e) #:transparent) ;; evaluate to 1 if e is unit else 0
 
+(define tmpstr ".__tmp__.__tmp__.")
 
 ;;; used by interpreter program only
 
@@ -23,8 +24,8 @@
 (struct _fun  (nameopt var-list body) #:transparent)
 ;; function call, !!!assume the length of two lists are the same
 (struct _call (funexp val-list)       #:transparent)
-;; modify var's binding
-(struct _modify-env (var))
+;; modify parent env's binding before execute the body
+(struct _modify-env (body))
 
 ;; convert racketlist to mupllist
 (define (racketlist->mupllist list)
@@ -165,10 +166,23 @@
                                                   (hash-var-val (cdr var-list) (cdr val-list)))))])
                      (hash-var-val fn-var-list _call-val-list)
                      )
-                   ;; eval the function call
-                  (eval-under-env fn-body
-                                 (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's)
-                 ))
+
+                   
+                   (if (_modify-env? fn-body)
+                       ;; if fn-body is a modify-env struct, then modify its parent env
+                       (begin
+                         (map (λ (var) (modify-env fn-env
+                                                   (car (string-split var tmpstr))
+                                                   (hash-ref cur-env var (λ () (error "unbound variable" var)))))
+                              fn-var-list)
+                         (eval-under-env (_modify-env-body fn-body)
+                                         (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's))
+                         )
+                       
+                       ;; otherwise, eval the function call
+                       (eval-under-env fn-body
+                                       (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's)
+                 )))
                (error "MUPL call applied to non-function")
                ))]
         
@@ -224,3 +238,17 @@
            (mlet* ([var-rest val-rest] ...)
                   body))
      ]))
+
+;; (mletrec ([var0 val0] ...) body) = (mlet ([var0 'void] ...)
+;;                                       (mlet ([var0.__tmp__ val0] ...)
+;;                                          body))
+(define-syntax mletrec
+  (syntax-rules ()
+    [(mletrec () body)
+     body]
+    [(mletrec ([var0 val0] [var-rest val-rest]  ...)
+              body)
+     (mlet ([var0 (aunit)] [var-rest (aunit)] ...)
+           (mlet ([(string-append var0 tmpstr) val0]
+                  [(string-append var-rest tmpstr) val-rest] ...)
+                 (_modify-env body)))]))

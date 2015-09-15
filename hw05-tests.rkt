@@ -83,8 +83,8 @@
                                (begin
                                  (modify-env env "v2" (int 8))
                                  (modify-env env "v3" (int 10))
-                                (check-equal? (int 8) (envlookup env "v2"))
-                                (check-equal? (int 10) (envlookup env "v3")))
+                                 (check-equal? (int 8) (envlookup env "v2"))
+                                 (check-equal? (int 10) (envlookup env "v3")))
                                ))
                            )
                          )
@@ -198,6 +198,22 @@
                                                         (add (add (var "v1") (var "v2"))
                                                              (var "v3")))))
                          )
+
+              (test-case "mletrec"
+                         (check-equal? (int 0)
+                                       (eval-exp (call (fun #f ("x")
+                                                            (mletrec (["even?" (fun #f ("n")
+                                                                                    (ifgreater (var "n") (int 0)                                                                                               
+                                                                                               (call (var "odd?")
+                                                                                                     (add (var "n") (int -1)))
+                                                                                               (int 1)))]
+                                                                      ["odd?" (fun #f ("n")
+                                                                                   (ifgreater (var "n") (int 0)
+                                                                                              (call (var "even?")
+                                                                                                    (add (var "n") (int -1)))
+                                                                                              (int 0)))])
+                                                                     (call (var "odd?") (var "x"))))
+                                                       (int 8)))))
 
               (test-case "ifaunit"
                          (check-equal? (int 0)
