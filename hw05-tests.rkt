@@ -190,12 +190,23 @@
               (test-case "ifaunit"
                          (check-equal? (int 0)
                                        (eval-exp (ifaunit (snd (apair (int 3) (aunit)))
-                                                          (call (fun #f () (int 0)) (aunit))
-                                                          (call (fun #f () (int 1)) (aunit)))))
+                                                          (call (fun #f () (int 0)))
+                                                          (call (fun #f () (int 1))))))
                          (check-equal? (int 1)
                                        (eval-exp (ifaunit (fst (apair (int 3) (aunit)))
-                                                          (call (fun #f () (int 0)) (aunit))
-                                                          (call (fun #f () (int 1)) (aunit)))))
+                                                          (call (fun #f () (int 0)))
+                                                          (call (fun #f () (int 1))))))
+                         )
+
+              (test-case "seq"
+                         (check-equal? (int 10)
+                                       (eval-exp (seq (add (int 1) (int 9)))))
+                         (check-equal? (int 3)
+                                       (eval-exp (seq (add (int 1) (int 9))
+                                                      (call (fun #f () (int 0)))
+                                                      (mlet (["v1" (int 1)]
+                                                             ["v2" (int 2)])
+                                                            (add (var "v1") (var "v2"))))))
                          )
               )
   )

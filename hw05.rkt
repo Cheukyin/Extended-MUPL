@@ -26,6 +26,8 @@
 (struct _call (funexp val-list)       #:transparent)
 ;; modify parent env's binding before execute the body
 (struct _modify-env (body))
+;; sequential exp
+(struct _seq (hd rest))
 
 ;; convert racketlist to mupllist
 (define (racketlist->mupllist list)
@@ -154,6 +156,19 @@
           (λ (env)
             (closure env (_fun fn-name fn-var-list fn-body))))]
 
+        ;; (_seq (hd rest)), sequential exps
+        [(_seq? e)
+         (let ([hd-proc (grammar-analyze (_seq-hd e))]
+               [erest (_seq-rest e)])
+           (if (aunit? erest)
+               (λ (env)
+                 (hd-proc env))
+               (let ([rest-proc (grammar-analyze erest)])
+                 (λ (env)
+                   (begin
+                     (hd-proc env)
+                     (rest-proc env))))))]
+
 ;         ;; used by letrec,
 ;        ;; if fn-body is a modify-env struct, then modify its parent env
 ;        [(_modify-env? e)
@@ -244,6 +259,15 @@
      (_call fn (list (aunit)))]
     [(call fn val0 val-rest ...)
      (_call fn (list val0 val-rest ...))]))
+
+
+;; sequentially execute, equivalent to 'begin' in racket
+(define-syntax seq
+  (syntax-rules ()
+    [(seq e0)
+     (_seq e0 (aunit))]
+    [(seq e0 e-rest ...)
+     (_seq e0 (seq e-rest ...))]))
 
 
 ;; a local binding (mlet ([var0 val0] ...) body), vark is a Racket string
