@@ -8,8 +8,7 @@
               (test-case "racketlist->mupllist"
                          (check-equal?
                           (apair (int 3) (apair (int 4) (apair (int 9) (aunit))))
-                          (racketlist->mupllist (list (int 3) (int 4) (int 9)))
-                          )
+                          (racketlist->mupllist (list (int 3) (int 4) (int 9))))
 
                          (check-equal?
                           (apair (apair (int 3)
@@ -22,25 +21,17 @@
                                                                     (apair (apair (int 3) (apair (int 8) (aunit)))
                                                                            (aunit)))
                                                              (aunit)))
-                                               (aunit)
-                                               )
-                                        )
-                                 )
+                                               (aunit))))
                           (racketlist->mupllist (list (list (int 3) (int 4) (list (int 5) (int 9)))
                                                       (int 6)
-                                                      (list (int 0) (list (int 2) (list (int 3) (int 8))))))
-                          )
-                         )
+                                                      (list (int 0) (list (int 2) (list (int 3) (int 8))))))))
 
               (test-case "mupllist->racketlist"
                          (let ( (racklist (list (list (int 3) (int 4) (list (int 5) (int 9)))
                                                 (int 6)
-                                                (list (int 0) (list (int 2) (list (int 3) (int 8))))))
-                                 )
+                                                (list (int 0) (list (int 2) (list (int 3) (int 8)))))))
                            (check-equal? racklist
-                                         (mupllist->racketlist (racketlist->mupllist racklist)))
-                           )
-                         )
+                                         (mupllist->racketlist (racketlist->mupllist racklist)))))
 
               (test-case "alist"
                          (check-equal?
@@ -49,19 +40,14 @@
                                  (alist (int 0) (alist (int 2) (alist (int 3) (int 8)))))
                           (racketlist->mupllist (list (list (int 3) (int 4) (list (int 5) (int 9)))
                                                       (int 6)
-                                                      (list (int 0) (list (int 2) (list (int 3) (int 8)))))
-                                                ))
-                         )
+                                                      (list (int 0) (list (int 2) (list (int 3) (int 8))))))))
 
               (test-case "envlookup"
                          (let ([ht1 (hash "v1" (int 1) "v2" (int 2))]
                                [ht2 (hash "v3" (int 3) "v4" (int 4))])                      
                            (let ([env (list ht1 ht2)])
                              (check-equal? (int 1) (envlookup env "v1"))
-                             (check-equal? (int 4) (envlookup env "v4"))
-                             )
-                         )
-              )
+                             (check-equal? (int 4) (envlookup env "v4")))))
 
               (test-case "modify-env"
                          (let ([ht1 (make-hash)]
@@ -76,18 +62,12 @@
                                  (modify-env env "v2" (int 8))
                                  (modify-env env "v3" (int 10))
                                  (check-equal? (int 8) (envlookup env "v2"))
-                                 (check-equal? (int 10) (envlookup env "v3")))
-                               ))
-                           )
-                         )
+                                 (check-equal? (int 10) (envlookup env "v3")))))))
 
               (test-case "eval on values"
                          (check-equal? (int 4) (eval-exp (int 4)))
                          (check-equal? (aunit) (eval-exp (aunit)))
-                         (check-equal? (alist (int 4) (int 5)) (eval-exp (alist (int 4) (int 5))))
-                         (check-equal? (alist (int 4) (eval-exp (fun "A" ("k") (apair (var "k") (aunit)))))
-                                       (eval-exp (alist (int 4) (fun "A" ("k") (alist (var "k") )))))
-                         )
+                         (check-equal? (alist (int 4) (int 5)) (eval-exp (alist (int 4) (int 5)))))
 
               (test-case "add"
                          (check-equal? (int 5) (eval-exp (add (int 1) (int 4))))
@@ -96,10 +76,10 @@
               (test-case "ifgreater"
                          (let ([e1 (add (int 2) (int 3))]
                                [e2 (int 8)]
-                               [e3 (fun "A" ("k") (aunit))]
+                               [e3 (add (int 2) (int 5))]
                                [e4 (add (int 4) (int 5))])
                            (check-equal? (int 9) (eval-exp (ifgreater e1 e2 e3 e4)))
-                           (check-equal? (eval-exp e3) (eval-exp (ifgreater e2 e1 e3 e4)))
+                           (check-equal? (int 7) (eval-exp (ifgreater e2 e1 e3 e4)))
                              )
                          )
 
@@ -191,21 +171,21 @@
                                                              (var "v3")))))
                          )
 
-              (test-case "mletrec"
-                         (check-equal? (int 0)
-                                       (eval-exp (call (fun #f ("x")
-                                                            (mletrec (["even?" (fun #f ("n")
-                                                                                    (ifgreater (var "n") (int 0)                                                                                               
-                                                                                               (call (var "odd?")
-                                                                                                     (add (var "n") (int -1)))
-                                                                                               (int 1)))]
-                                                                      ["odd?" (fun #f ("n")
-                                                                                   (ifgreater (var "n") (int 0)
-                                                                                              (call (var "even?")
-                                                                                                    (add (var "n") (int -1)))
-                                                                                              (int 0)))])
-                                                                     (call (var "odd?") (var "x"))))
-                                                       (int 8)))))
+;              (test-case "mletrec"
+;                         (check-equal? (int 0)
+;                                       (eval-exp (call (fun #f ("x")
+;                                                            (mletrec (["even?" (fun #f ("n")
+;                                                                                    (ifgreater (var "n") (int 0)                                                                                               
+;                                                                                               (call (var "odd?")
+;                                                                                                     (add (var "n") (int -1)))
+;                                                                                               (int 1)))]
+;                                                                      ["odd?" (fun #f ("n")
+;                                                                                   (ifgreater (var "n") (int 0)
+;                                                                                              (call (var "even?")
+;                                                                                                    (add (var "n") (int -1)))
+;                                                                                              (int 0)))])
+;                                                                     (call (var "odd?") (var "x"))))
+;                                                       (int 8)))))
 
               (test-case "ifaunit"
                          (check-equal? (int 0)

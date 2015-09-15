@@ -73,112 +73,149 @@
         (hash-update! cur-env str (λ (n) val)
                       (λ () (modify-env (cdr env) str val))))))
 
-;; evaluate e under env
-(define (eval-under-env e env)
-  ;; test if e a basic value( int or aunit or closure? )
+
+;; test if e a basic value( int or aunit or closure? )
   (define (mvalue? e)
     (or (int? e) (aunit? e) (closure? e)))
-  
-  (cond [(var? e) 
-         (envlookup env (var-string e))] ;; lookup var in the env
 
-        ;; basic values evaluate to themselves
+;; analyze the grammar of an exp, then return a proc that takes env as its param
+(define (grammar-analyze e)
+  (cond [(var? e)
+         (λ (env)
+           (envlookup env (var-string e)))] ;; lookup var in the env
+
         [(mvalue? e)
-         e]
-
-        ;; lexical scoped function
-        [(_fun? e)
-         (closure env e)]
+         (λ (env) e)] ;; basic values evaluate to themselves
 
         [(isaunit? e)
-         (if (aunit? (eval-under-env (isaunit-e e) env))
-             (int 1)
-             (int 0))]
+         (let ([eproc (grammar-analyze (isaunit-e e))])
+           (λ (env)
+             (if (aunit? (eproc env))
+                 (int 1)
+                 (int 0))))]
 
         ;; eval each parts of a apair to val
         [(apair? e)
-         (apair (eval-under-env (apair-e1 e) env)
-                (eval-under-env (apair-e2 e) env))]
+         (let ([e1-proc (grammar-analyze (apair-e1 e))]
+               [e2-proc (grammar-analyze (apair-e2 e))])
+           (λ (env)
+             (apair (e1-proc env)
+                    (e2-proc env))))]
 
         [(fst? e)
-         (let ([v (eval-under-env (fst-e e) env)])
-           (if (apair? v)
-               (apair-e1 v)
-               (error "MUPL fst applied to non-apair")))]
+         (let ([eproc (grammar-analyze (fst-e e))])
+           (λ (env)
+             (let ([v (eproc env)])
+               (if (apair? v)
+                   (apair-e1 v)
+                   (error "MUPL fst applied to non-apair")))))]
 
         [(snd? e)
-         (let ([v (eval-under-env (snd-e e) env)])
-           (if (apair? v)
-               (apair-e2 v)
-               (error "MUPL fst applied to non-apair")))]
+         (let ([eproc (grammar-analyze (snd-e e))])
+           (λ (env)
+             (let ([v (eproc env)])
+               (if (apair? v)
+                   (apair-e2 v)
+                   (error "MUPL fst applied to non-apair")))))]
 
         ;; (add e1 e2) = e1 + e2 iff e1 and e2 are int type
-        [(add? e) 
-         (let ([v1 (eval-under-env (add-e1 e) env)]
-               [v2 (eval-under-env (add-e2 e) env)])
-           (if (and (int? v1)
-                    (int? v2))
-               (int (+ (int-num v1) 
-                       (int-num v2)))
-               (error "MUPL addition applied to non-number")))]
+        [(add? e)
+         (let ([e1proc (grammar-analyze (add-e1 e))]
+               [e2proc (grammar-analyze (add-e2 e))])
+           (λ (env)
+             (let ([v1 (e1proc env)]
+                   [v2 (e2proc env)])
+               (if (and (int? v1)
+                        (int? v2))
+                   (int (+ (int-num v1) 
+                           (int-num v2)))
+                   (error "MUPL addition applied to non-number")))))]
 
         ;; (ifgreater e1 e2 e3 e4), eval e1 and e2 first, if e1 and e2 are int type, ...
         [(ifgreater? e)
-         (let ([v1 (eval-under-env (ifgreater-e1 e) env)]
-               [v2 (eval-under-env (ifgreater-e2 e) env)])
-           (if (and (int? v1) (int? v2))
-               (if (> (int-num v1) (int-num v2))
-                   (eval-under-env (ifgreater-e3 e) env)
-                   (eval-under-env (ifgreater-e4 e) env))
-               (error "MUPL ifgreater applied to non-number")))]
+         (let ([e1proc (grammar-analyze (ifgreater-e1 e))]
+               [e2proc (grammar-analyze (ifgreater-e2 e))]
+               [e3proc (grammar-analyze (ifgreater-e3 e))]
+               [e4proc (grammar-analyze (ifgreater-e4 e))])
+           (λ (env)
+             (let ([v1 (e1proc env)]
+                   [v2 (e2proc env)])
+               (if (and (int? v1) (int? v2))
+                   (if (> (int-num v1) (int-num v2))
+                       (e3proc env)
+                       (e4proc env))
+                   (error "MUPL ifgreater applied to non-number")))))]
+        
+         ;; lexical scoped function
+        [(_fun? e)
+         (let ([fn-name (_fun-nameopt e)]
+               [fn-var-list (_fun-var-list e)]
+               [fn-body (grammar-analyze (_fun-body e))])
+          (λ (env)
+            (closure env (_fun fn-name fn-var-list fn-body))))]
 
-        ;; function call
+;         ;; used by letrec,
+;        ;; if fn-body is a modify-env struct, then modify its parent env
+;        [(_modify-env? e)
+;         (let ([fn-body-proc (_modify-env-body e)])
+;           (λ (env)
+;             ))]
+
+        ;; function call,
+        ;; (struct _fun  (nameopt var-list body))
+        ;; (struct _call (funexp val-list))
         [(_call? e)
-         (let ([clos (eval-under-env (_call-funexp e) env)])
-           (if (closure? clos)
-               (let* ([_call-val-list (_call-val-list e)]
-                      [fn (closure-fun clos)]
-                      [fn-env (closure-env clos)]
-                      [fn-name (_fun-nameopt fn)]
-                      [fn-var-list (_fun-var-list fn)]
-                      [fn-body (_fun-body fn)]
-                      [cur-env (make-hash)])
-                 
-                 (begin
-                   (if fn-name
-                       (hash-set! cur-env fn-name clos) ;; fn-name != #f, bind the function name : function body
-                       null)
-                   ;; bind the var-val pairs
-                   (letrec ([hash-var-val (λ (var-list val-list) ;; !!!assume the length of two lists are the same
-                                            (if (null? var-list)
-                                                null
-                                                (begin
-                                                  (hash-set! cur-env (car var-list) (eval-under-env (car val-list) env))
-                                                  (hash-var-val (cdr var-list) (cdr val-list)))))])
-                     (hash-var-val fn-var-list _call-val-list)
-                     )
-
-                   
-                   (if (_modify-env? fn-body)
-                       ;; used by letrec,
-                       ;; if fn-body is a modify-env struct, then modify its parent env
-                       (begin
-                         (map (λ (var) (modify-env fn-env
-                                                   (car (string-split var tmpstr))
-                                                   (hash-ref cur-env var (λ () (error "unbound variable" var)))))
-                              fn-var-list)
-                         (eval-under-env (_modify-env-body fn-body)
-                                         (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's))
+         (let ([funexp-proc (grammar-analyze (_call-funexp e))])
+           (λ (env)
+             (let ([clos (funexp-proc env)])
+               (if (closure? clos)
+                   (let* ([_call-val-list (_call-val-list e)]
+                          [fn (closure-fun clos)]
+                          [fn-env (closure-env clos)]
+                          [fn-name (_fun-nameopt fn)]
+                          [fn-var-list (_fun-var-list fn)]
+                          [fn-body-proc (_fun-body fn)]
+                          [cur-env (make-hash)])
+                     
+                     (begin
+                       (if fn-name
+                           (hash-set! cur-env fn-name clos) ;; fn-name != #f, bind the function name : function body
+                           null)
+                       ;; bind the var-val pairs
+                       (letrec ([hash-var-val (λ (var-list val-list) ;; !!!assume the length of two lists are the same
+                                                (if (null? var-list)
+                                                    null
+                                                    (begin
+                                                      (hash-set! cur-env (car var-list) (eval-under-env (car val-list) env))
+                                                      (hash-var-val (cdr var-list) (cdr val-list)))))])
+                         (hash-var-val fn-var-list _call-val-list)
                          )
                        
-                       ;; if not a letrec, eval the function call
-                       (eval-under-env fn-body
-                                       (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's)
-                 )))
-               (error "MUPL call applied to non-function")
-               ))]
-        
+                       
+                       (if (_modify-env? fn-body-proc)
+                           ;; used by letrec,
+                           ;; if fn-body is a modify-env struct, then modify its parent env
+                           (begin
+                             (map (λ (var) (modify-env fn-env
+                                                       (car (string-split var tmpstr))
+                                                       (hash-ref cur-env var (λ () (error "unbound variable" var)))))
+                                  fn-var-list)
+                             (eval-under-env (_modify-env-body fn-body-proc)
+                                             (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's))
+                             )
+                           
+                           ;; if not a letrec, eval the function call
+                           (fn-body-proc (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's)
+                           )))
+                   
+                   (error "MUPL call applied to non-function")
+                   ))))]
+
         [#t (error (format "bad MUPL expression: ~v" e))]))
+
+;; evaluate e under env
+(define (eval-under-env e env)
+  ((grammar-analyze e) env))
 
 ;; evaluate the expression e under the null evn
 (define (eval-exp e)
