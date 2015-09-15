@@ -24,8 +24,8 @@
 (struct _fun  (nameopt var-list body) #:transparent)
 ;; function call, !!!assume the length of two lists are the same
 (struct _call (funexp val-list)       #:transparent)
-;; modify parent env's binding before execute the body
-(struct _modify-env (body))
+;; used in mletrec, modify the binding of var in the parent env
+(struct _modify-env (var))
 ;; sequential exp
 (struct _seq (hd rest))
 
@@ -34,9 +34,9 @@
   (if (null? list)
       (aunit)
       (apair (let ([ head (car list) ])
-              (if (pair? head)
-                 (racketlist->mupllist head)
-                 head))
+               (if (pair? head)
+                   (racketlist->mupllist head)
+                   head))
              (racketlist->mupllist (cdr list)))))
 
 ;; convert mupllist to racketlist
@@ -44,10 +44,10 @@
   (if (aunit? list)
       null
       (cons (let ([ head (apair-e1 list) ])
-             (if (apair? head)
-                 (mupllist->racketlist head)
-                 head))
-             (mupllist->racketlist (apair-e2 list)))))
+              (if (apair? head)
+                  (mupllist->racketlist head)
+                  head))
+            (mupllist->racketlist (apair-e2 list)))))
 
 ;; act like list in Racket
 (define (alist . args)
@@ -67,35 +67,27 @@
         (hash-ref cur-env str
                   (λ () (envlookup (cdr env) str))))))
 
-;; modify binding of the var
-(define (modify-env env str val)
-  (if (null? env)
-      (error "unbound variable during evaluation" str)
-      (let ([cur-env (car env)])
-        (hash-update! cur-env str (λ (n) val)
-                      (λ () (modify-env (cdr env) str val))))))
-
 
 ;; test if e a basic value( int or aunit or closure? )
-  (define (mvalue? e)
-    (or (int? e) (aunit? e) (closure? e)))
+(define (mvalue? e)
+  (or (int? e) (aunit? e) (closure? e)))
 
 ;; analyze the grammar of an exp, then return a proc that takes env as its param
 (define (grammar-analyze e)
   (cond [(var? e)
          (λ (env)
            (envlookup env (var-string e)))] ;; lookup var in the env
-
+        
         [(mvalue? e)
          (λ (env) e)] ;; basic values evaluate to themselves
-
+        
         [(isaunit? e)
          (let ([eproc (grammar-analyze (isaunit-e e))])
            (λ (env)
              (if (aunit? (eproc env))
                  (int 1)
                  (int 0))))]
-
+        
         ;; eval each parts of a apair to val
         [(apair? e)
          (let ([e1-proc (grammar-analyze (apair-e1 e))]
@@ -103,7 +95,7 @@
            (λ (env)
              (apair (e1-proc env)
                     (e2-proc env))))]
-
+        
         [(fst? e)
          (let ([eproc (grammar-analyze (fst-e e))])
            (λ (env)
@@ -111,7 +103,7 @@
                (if (apair? v)
                    (apair-e1 v)
                    (error "MUPL fst applied to non-apair")))))]
-
+        
         [(snd? e)
          (let ([eproc (grammar-analyze (snd-e e))])
            (λ (env)
@@ -119,7 +111,7 @@
                (if (apair? v)
                    (apair-e2 v)
                    (error "MUPL fst applied to non-apair")))))]
-
+        
         ;; (add e1 e2) = e1 + e2 iff e1 and e2 are int type
         [(add? e)
          (let ([e1proc (grammar-analyze (add-e1 e))]
@@ -132,7 +124,7 @@
                    (int (+ (int-num v1) 
                            (int-num v2)))
                    (error "MUPL addition applied to non-number")))))]
-
+        
         ;; (ifgreater e1 e2 e3 e4), eval e1 and e2 first, if e1 and e2 are int type, ...
         [(ifgreater? e)
          (let ([e1proc (grammar-analyze (ifgreater-e1 e))]
@@ -148,14 +140,14 @@
                        (e4proc env))
                    (error "MUPL ifgreater applied to non-number")))))]
         
-         ;; lexical scoped function
+        ;; lexical scoped function
         [(_fun? e)
          (let ([fn-name (_fun-nameopt e)]
                [fn-var-list (_fun-var-list e)]
                [fn-body (grammar-analyze (_fun-body e))])
-          (λ (env)
-            (closure env (_fun fn-name fn-var-list fn-body))))]
-
+           (λ (env)
+             (closure env (_fun fn-name fn-var-list fn-body))))]
+        
         ;; (_seq (hd rest)), sequential exps
         [(_seq? e)
          (let ([hd-proc (grammar-analyze (_seq-hd e))]
@@ -168,14 +160,19 @@
                    (begin
                      (hd-proc env)
                      (rest-proc env))))))]
-
-;         ;; used by letrec,
-;        ;; if fn-body is a modify-env struct, then modify its parent env
-;        [(_modify-env? e)
-;         (let ([fn-body-proc (_modify-env-body e)])
-;           (λ (env)
-;             ))]
-
+        
+        ;; used in mletrec,
+        ;; modify the var's binding
+        [(_modify-env? e)
+         (let ([var (_modify-env-var e)])
+           (λ (env)
+             (let* ([cur-env (car env)]
+                    [parent-env (cadr env)]
+                    [val (hash-ref cur-env (string-append var tmpstr)
+                                   (λ () (error "unbound variable" (string-append var tmpstr))))])
+               (hash-update! parent-env var (λ (_) val)
+                             (λ () (error "unbound variable" var))))))]
+        
         ;; function call,
         ;; (struct _fun  (nameopt var-list body))
         ;; (struct _call (funexp val-list))
@@ -196,6 +193,7 @@
                        (if fn-name
                            (hash-set! cur-env fn-name clos) ;; fn-name != #f, bind the function name : function body
                            null)
+                       
                        ;; bind the var-val pairs
                        (letrec ([hash-var-val (λ (var-list val-list) ;; !!!assume the length of two lists are the same
                                                 (if (null? var-list)
@@ -206,26 +204,13 @@
                          (hash-var-val fn-var-list _call-val-list)
                          )
                        
-                       
-                       (if (_modify-env? fn-body-proc)
-                           ;; used by letrec,
-                           ;; if fn-body is a modify-env struct, then modify its parent env
-                           (begin
-                             (map (λ (var) (modify-env fn-env
-                                                       (car (string-split var tmpstr))
-                                                       (hash-ref cur-env var (λ () (error "unbound variable" var)))))
-                                  fn-var-list)
-                             (eval-under-env (_modify-env-body fn-body-proc)
-                                             (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's))
-                             )
-                           
-                           ;; if not a letrec, eval the function call
-                           (fn-body-proc (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's)
-                           )))
+                       ;; eval the function call
+                       (fn-body-proc (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's)
+                       ))
                    
                    (error "MUPL call applied to non-function")
                    ))))]
-
+        
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
 ;; evaluate e under env
@@ -295,7 +280,9 @@
 
 ;; (mletrec ([var0 val0] ...) body) = (mlet ([var0 (aunit] ...)
 ;;                                       (mlet ([var0.__tmp__ val0] ...)
-;;                                          (_modify-env body)))
+;;                                          (seq (_modify-env var0)
+;;                                               (_modify-env var-rest) ...
+;;                                               body)))
 ;; (_modify-env body) will modify the bindings of var0, var1, ... before calling the body
 (define-syntax mletrec
   (syntax-rules ()
@@ -306,4 +293,6 @@
      (mlet ([var0 (aunit)] [var-rest (aunit)] ...)
            (mlet ([(string-append var0 tmpstr) val0]
                   [(string-append var-rest tmpstr) val-rest] ...)
-                 (_modify-env body)))]))
+                 (seq (_modify-env var0)
+                      (_modify-env var-rest) ...
+                      body)))]))
