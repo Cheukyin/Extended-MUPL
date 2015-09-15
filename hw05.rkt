@@ -1,9 +1,9 @@
-;; MUPL Interpreter
+;; Extended MUPL Interpreter
 
 #lang racket
 (provide (all-defined-out)) ;; so we can put tests in a second file
 
-;; definition of structures for MUPL programs - Do NOT change
+;; definition of structures for  MUPL programs - Do NOT change
 (struct var  (string) #:transparent)  ;; a variable, e.g., (var "foo")
 (struct int  (num)    #:transparent)  ;; a constant number, e.g., (int 17)
 (struct add  (e1 e2)  #:transparent)  ;; add two expressions
@@ -14,7 +14,7 @@
 (struct aunit ()    #:transparent) ;; unit value -- good for ending a list
 (struct isaunit (e) #:transparent) ;; evaluate to 1 if e is unit else 0
 
-(define tmpstr ".__tmp__.__tmp__.")
+(define tmpstr ".__tmp__.__tmp__.") ;; used by letrec
 
 ;;; used by interpreter program only
 
@@ -34,12 +34,8 @@
       (apair (let ([ head (car list) ])
               (if (pair? head)
                  (racketlist->mupllist head)
-                 head
-                 )
-              )
-             (racketlist->mupllist (cdr list)))
-      )
-  )
+                 head))
+             (racketlist->mupllist (cdr list)))))
 
 ;; convert mupllist to racketlist
 (define (mupllist->racketlist list)
@@ -48,13 +44,8 @@
       (cons (let ([ head (apair-e1 list) ])
              (if (apair? head)
                  (mupllist->racketlist head)
-                 head
-                 )
-              )
-             (mupllist->racketlist (apair-e2 list))
-             )
-      )
-  )
+                 head))
+             (mupllist->racketlist (apair-e2 list)))))
 
 ;; act like list in Racket
 (define (alist . args)
@@ -169,6 +160,7 @@
 
                    
                    (if (_modify-env? fn-body)
+                       ;; used by letrec,
                        ;; if fn-body is a modify-env struct, then modify its parent env
                        (begin
                          (map (λ (var) (modify-env fn-env
@@ -179,7 +171,7 @@
                                          (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's))
                          )
                        
-                       ;; otherwise, eval the function call
+                       ;; if not a letrec, eval the function call
                        (eval-under-env fn-body
                                        (cons cur-env fn-env)) ;; extend fn-env, the inner bindings will hide the outer env's)
                  )))
@@ -192,6 +184,8 @@
 (define (eval-exp e)
   (eval-under-env e null))
 
+
+;;----------------------------------- Syntatic Sugar ----------------------------------------
 
 ;; e1 = (aunit), e2; otherwise e3
 (define (ifaunit e1 e2 e3)
@@ -236,12 +230,12 @@
             body)
      (mlet ([var0 val0])
            (mlet* ([var-rest val-rest] ...)
-                  body))
-     ]))
+                  body))]))
 
-;; (mletrec ([var0 val0] ...) body) = (mlet ([var0 'void] ...)
+;; (mletrec ([var0 val0] ...) body) = (mlet ([var0 (aunit] ...)
 ;;                                       (mlet ([var0.__tmp__ val0] ...)
-;;                                          body))
+;;                                          (_modify-env body)))
+;; (_modify-env body) will modify the bindings of var0, var1, ... before calling the body
 (define-syntax mletrec
   (syntax-rules ()
     [(mletrec () body)
