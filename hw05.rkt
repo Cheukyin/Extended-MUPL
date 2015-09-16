@@ -28,6 +28,8 @@
 (struct _modify-env (var))
 ;; sequential exp
 (struct _seq (hd rest))
+;; def, equivalent to define in racket
+(struct def (var e))
 
 ;; convert racketlist to mupllist
 (define (racketlist->mupllist list)
@@ -160,6 +162,14 @@
                    (begin
                      (hd-proc env)
                      (rest-proc env))))))]
+
+        ;; (def (var e)), bind var to e in the current env
+        [(def? e)
+         (let ([var (def-var e)]
+               [e-proc (grammar-analyze (def-e e))])
+           (λ (env)
+             (let ([val (e-proc env)])
+                 (hash-set! (car env) var (e-proc env)))))]
         
         ;; used in mletrec,
         ;; modify the var's binding
@@ -177,12 +187,12 @@
         ;; (struct _fun  (nameopt var-list body))
         ;; (struct _call (funexp val-list))
         [(_call? e)
-         (let ([funexp-proc (grammar-analyze (_call-funexp e))])
+         (let ([funexp-proc (grammar-analyze (_call-funexp e))]
+               [val-proc-list (map grammar-analyze (_call-val-list e))])
            (λ (env)
              (let ([clos (funexp-proc env)])
                (if (closure? clos)
-                   (let* ([_call-val-list (_call-val-list e)]
-                          [fn (closure-fun clos)]
+                   (let* ([fn (closure-fun clos)]
                           [fn-env (closure-env clos)]
                           [fn-name (_fun-nameopt fn)]
                           [fn-var-list (_fun-var-list fn)]
@@ -195,13 +205,13 @@
                            null)
                        
                        ;; bind the var-val pairs
-                       (letrec ([hash-var-val (λ (var-list val-list) ;; !!!assume the length of two lists are the same
+                       (letrec ([hash-var-val (λ (var-list val-proc-list) ;; !!!assume the length of two lists are the same
                                                 (if (null? var-list)
                                                     null
                                                     (begin
-                                                      (hash-set! cur-env (car var-list) (eval-under-env (car val-list) env))
-                                                      (hash-var-val (cdr var-list) (cdr val-list)))))])
-                         (hash-var-val fn-var-list _call-val-list)
+                                                      (hash-set! cur-env (car var-list) ((car val-proc-list) env))
+                                                      (hash-var-val (cdr var-list) (cdr val-proc-list)))))])
+                         (hash-var-val fn-var-list val-proc-list)
                          )
                        
                        ;; eval the function call
@@ -217,9 +227,9 @@
 (define (eval-under-env e env)
   ((grammar-analyze e) env))
 
-;; evaluate the expression e under the null evn
+;; evaluate the expression e under the top env
 (define (eval-exp e)
-  (eval-under-env e null))
+  (eval-under-env e (list (make-hash))))
 
 
 ;;----------------------------------- Syntatic Sugar ----------------------------------------

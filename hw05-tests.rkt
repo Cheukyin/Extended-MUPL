@@ -193,6 +193,21 @@
                                                              ["v2" (int 2)])
                                                             (add (var "v1") (var "v2"))))))
                          )
+
+              (test-case "def"
+                         (check-equal? (int 10)
+                                       (eval-exp (seq (def "x" (int 10))
+                                                       (var "x"))))
+                         (check-equal? (int 11)
+                                       (eval-exp (seq (def "f1" (fun #f ("fn" "x")
+                                                                     (add (var "x")
+                                                                          (call (var "fn") (int 2)))))
+                                                      (def "fn" (fun #f ("x")
+                                                                     (add (int 1) (var "x"))))
+                                                      (def "x" (int 8))
+                                                      (call (var "f1")
+                                                            (var "fn") (var "x")))))
+                         )
               )
   )
   
