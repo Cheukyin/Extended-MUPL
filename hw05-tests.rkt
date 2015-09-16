@@ -52,10 +52,18 @@
               (test-case "eval on values"
                          (check-equal? (int 4) (eval-exp (int 4)))
                          (check-equal? (aunit) (eval-exp (aunit)))
-                         (check-equal? (alist (int 4) (int 5)) (eval-exp (alist (int 4) (int 5)))))
+                         (check-equal? (alist (int 4) (int 5)) (eval-exp (alist (int 4) (int 5))))
+                         (check-equal? (bool T) (eval-exp (bool T)))
+                         (check-equal? (bool F) (eval-exp (bool F)))
+                         )
 
               (test-case "add"
                          (check-equal? (int 5) (eval-exp (add (int 1) (int 4))))
+                         )
+
+              (test-case "if-then-else"
+                         (check-equal? (int 10) (eval-exp (if-then-else (bool T) (int 10) (int 11))))
+                         (check-equal? (int 11) (eval-exp (if-then-else (bool F) (int 10) (int 11))))
                          )
 
               (test-case "ifgreater"
@@ -78,8 +86,8 @@
 
               (test-case "isaunit"
                          (let ([p (apair (int 4) (aunit))])
-                           (check-equal? (int 1) (eval-exp (isaunit (snd p))))
-                           (check-equal? (int 0) (eval-exp (isaunit (fst p)))))
+                           (check-equal? (bool T) (eval-exp (isaunit (snd p))))
+                           (check-equal? (bool F) (eval-exp (isaunit (fst p)))))
                          )
 
               (test-case "function call"

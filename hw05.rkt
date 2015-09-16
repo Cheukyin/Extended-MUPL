@@ -13,6 +13,10 @@
 (struct snd  (e)    #:transparent) ;; get second part of a pair
 (struct aunit ()    #:transparent) ;; unit value -- good for ending a list
 (struct isaunit (e) #:transparent) ;; evaluate to 1 if e is unit else 0
+(struct bool (e) #:transparent) ;; boolean, T or F
+(define T 'T) ;; true
+(define F 'F) ;; false
+(struct if-then-else (e1 e2 e3)) ;; if e1 is true, e2; otherwise e3
 
 (define tmpstr ".__tmp__.__tmp__.") ;; used by letrec
 
@@ -72,7 +76,7 @@
 
 ;; test if e a basic value( int or aunit or closure? )
 (define (mvalue? e)
-  (or (int? e) (aunit? e) (closure? e)))
+  (or (int? e) (bool? e) (aunit? e) (closure? e)))
 
 ;; analyze the grammar of an exp, then return a proc that takes env as its param
 (define (grammar-analyze e)
@@ -87,8 +91,20 @@
          (let ([eproc (grammar-analyze (isaunit-e e))])
            (λ (env)
              (if (aunit? (eproc env))
-                 (int 1)
-                 (int 0))))]
+                 (bool T)
+                 (bool F))))]
+        
+        [(if-then-else? e)
+         (let ([e1-proc (grammar-analyze (if-then-else-e1 e))]
+               [e2-proc (grammar-analyze (if-then-else-e2 e))]
+               [e3-proc (grammar-analyze (if-then-else-e3 e))])
+           (λ (env)
+             (let ([predicate (e1-proc env)])
+               (if (bool? predicate)
+                   (if (eq? T (bool-e predicate))
+                       (e2-proc env)
+                       (e3-proc env))
+                   (error "MUPL if-then-else applied to non-bool")))))]
         
         ;; eval each parts of a apair to val
         [(apair? e)
@@ -162,14 +178,14 @@
                    (begin
                      (hd-proc env)
                      (rest-proc env))))))]
-
+        
         ;; (def (var e)), bind var to e in the current env
         [(def? e)
          (let ([var (def-var e)]
                [e-proc (grammar-analyze (def-e e))])
            (λ (env)
              (let ([val (e-proc env)])
-                 (hash-set! (car env) var (e-proc env)))))]
+               (hash-set! (car env) var (e-proc env)))))]
         
         ;; used in mletrec,
         ;; modify the var's binding
@@ -235,9 +251,11 @@
 ;;----------------------------------- Syntatic Sugar ----------------------------------------
 
 ;; e1 = (aunit), e2; otherwise e3
-(define (ifaunit e1 e2 e3)
-  (ifgreater (isaunit e1) (int 0)
-             e2 e3))
+(define-syntax ifaunit
+  (syntax-rules ()
+    [(ifaunit e1 e2 e3)
+     (if-then-else (isaunit e1)
+                   e2 e3)]))
 
 ;; (fun fn-name (var0 ...) body)
 (define-syntax fun
