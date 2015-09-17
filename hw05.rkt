@@ -5,20 +5,29 @@
 
 ;; definition of structures for  MUPL programs - Do NOT change
 (struct var  (string) #:transparent)  ;; a variable, e.g., (var "foo")
+
 (struct int  (num)    #:transparent)  ;; a constant number, e.g., (int 17)
 (struct add  (e1 e2)  #:transparent)  ;; add two expressions
 (struct ifgreater (e1 e2 e3 e4)    #:transparent) ;; if e1 > e2 then e3 else e4
+
 (struct apair (e1 e2)     #:transparent) ;; make a new pair
 (struct fst  (e)    #:transparent) ;; get first part of a pair
 (struct snd  (e)    #:transparent) ;; get second part of a pair
+
 (struct aunit ()    #:transparent) ;; unit value -- good for ending a list
 (struct isaunit (e) #:transparent) ;; evaluate to 1 if e is unit else 0
+
 (struct bool (e) #:transparent) ;; boolean, T or F
 (define T 'T) ;; true
 (define F 'F) ;; false
 (struct if-then-else (e1 e2 e3)) ;; if e1 is true, e2; otherwise e3
 
-(define tmpstr ".__tmp__.__tmp__.") ;; used by letrec
+(struct ref (v)) ;; ref type, indicate a location of a value, the contents of v is mutable
+(struct newref! (v)) ;; allocate a location to store v
+(struct deref (loc)) ;; read the value stored in loc, loc must be a ref type
+(struct setref! (loc v)) ;; set the content of loc as v, loc must be a ref type
+(define storage (make-vector 0)) ;; model the memory to store the mutable datum
+
 
 ;;; used by interpreter program only
 
@@ -28,10 +37,14 @@
 (struct _fun  (nameopt var-list body) #:transparent)
 ;; function call, !!!assume the length of two lists are the same
 (struct _call (funexp val-list)       #:transparent)
+
+(define tmpstr ".__tmp__.__tmp__.") ;; used by letrec
 ;; used in mletrec, modify the binding of var in the parent env
 (struct _modify-env (var))
+
 ;; sequential exp
 (struct _seq (hd rest))
+
 ;; def, equivalent to define in racket
 (struct def (var e))
 
@@ -76,7 +89,7 @@
 
 ;; test if e a basic value( int or aunit or closure? )
 (define (mvalue? e)
-  (or (int? e) (bool? e) (aunit? e) (closure? e)))
+  (or (int? e) (bool? e) (aunit? e) (ref? e) (closure? e)))
 
 ;; analyze the grammar of an exp, then return a proc that takes env as its param
 (define (grammar-analyze e)
@@ -93,6 +106,32 @@
              (if (aunit? (eproc env))
                  (bool T)
                  (bool F))))]
+
+        [(newref!? e)
+         (let ([e-proc (grammar-analyze (newref!-v e))])
+           (λ (env)
+             (let ([val (e-proc env)]
+                   [storage-addr (vector-length storage)])
+               (begin
+                 (set! storage (vector-append storage (vector val)))
+                 (ref storage-addr)))))]
+
+        [(deref? e)
+         (let ([e-proc (grammar-analyze (deref-loc e))])
+           (λ (env)
+             (let ([refv (e-proc env)])
+               (if (ref? refv)
+                   (vector-ref storage (ref-v refv))
+                   (error "MUPL deref applied to non-ref")))))]
+
+        [(setref!? e)
+         (let ([loc-proc (grammar-analyze (setref!-loc e))]
+               [v-proc (grammar-analyze (setref!-v e))])
+           (λ (env)
+             (let ([refv (loc-proc env)])
+              (if (ref? refv)
+               (vector-set! storage (ref-v refv) (v-proc env))
+               (error "MUPL setref applied to non-ref")))))]
         
         [(if-then-else? e)
          (let ([e1-proc (grammar-analyze (if-then-else-e1 e))]

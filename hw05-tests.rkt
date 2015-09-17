@@ -216,6 +216,22 @@
                                                       (call (var "f1")
                                                             (var "fn") (var "x")))))
                          )
+
+              (test-case "ref"
+                         (check-equal? (alist (int 12) (int 12) (int 26) (int 26))
+                                       (eval-exp (mlet (["x" (newref! (add (int 1) (int 2)))]
+                                                        ["y" (newref! (newref! (add (int 3) (int 4))))])
+                                                       (mlet (["list" (mlet* (["z" (var "x")]
+                                                                              ["x" (deref (var "y"))]
+                                                                              ["w" (var "x")])
+                                                                             (seq (setref! (var "z") (add (deref (var "z")) (int 9)))
+                                                                                  (setref! (var "w") (add (deref (var "z"))
+                                                                                                          (add (deref (var "w")) (int 7))))
+                                                                                  (alist (deref (var "z"))
+                                                                                         (deref (deref (var "y")))
+                                                                                         (deref (var "x")))))])
+                                                             (apair (deref (var "x")) (var "list"))))))
+                         )
               )
   )
   
