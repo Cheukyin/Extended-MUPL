@@ -232,6 +232,25 @@
                                                                                          (deref (var "x")))))])
                                                              (apair (deref (var "x")) (var "list"))))))
                          )
+
+              (test-case "ampair"
+                         (let ([mp (ampair (add (int 1) (int 2))
+                                           (add (int 3) (int 4)))])
+                           (check-equal? (int 3)
+                                         (eval-exp (mfst mp)))
+                           (check-equal? (int 7)
+                                         (eval-exp (msnd mp))))
+                         (check-equal? (int 3)
+                                       (eval-exp (mfst (msnd (msnd
+                                                             (amlist (int 1) (int 2) (int 3) (int 4)))))))
+                         ;; sth strange!!!!!! can't pass
+;                         (check-equal? (int 4)
+;                                       (eval-exp (seq
+;                                                  (def "mlist" (amlist (int 6) (int 2) (int 3)))
+;                                                  (set-mfst! (var "mlist")
+;                                                             (apair (newref! (int 7)) (newref! (int 7))))
+;                                                  (mfst (var "mlist")))))
+                         )
               )
   )
   

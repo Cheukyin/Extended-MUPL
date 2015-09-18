@@ -20,13 +20,14 @@
 (struct bool (e) #:transparent) ;; boolean, T or F
 (define T 'T) ;; true
 (define F 'F) ;; false
-(struct if-then-else (e1 e2 e3)) ;; if e1 is true, e2; otherwise e3
+(struct if-then-else (e1 e2 e3) #:transparent) ;; if e1 is true, e2; otherwise e3
 
-(struct ref (v)) ;; ref type, indicate a location of a value, the contents of v is mutable
-(struct newref! (v)) ;; allocate a location to store v
-(struct deref (loc)) ;; read the value stored in loc, loc must be a ref type
-(struct setref! (loc v)) ;; set the content of loc as v, loc must be a ref type
 (define storage (make-vector 0)) ;; model the memory to store the mutable datum
+
+(struct ref (v) #:transparent) ;; ref type, indicate a location of a value, the contents of v is mutable
+(struct newref! (v) #:transparent) ;; allocate a location to store v
+(struct deref (loc) #:transparent) ;; read the value stored in loc, loc must be a ref type
+(struct setref! (loc v) #:transparent) ;; set the content of loc as v, loc must be a ref type
 
 
 ;;; used by interpreter program only
@@ -40,13 +41,13 @@
 
 (define tmpstr ".__tmp__.__tmp__.") ;; used by letrec
 ;; used in mletrec, modify the binding of var in the parent env
-(struct _modify-env (var))
+(struct _modify-env (var) #:transparent)
 
 ;; sequential exp
-(struct _seq (hd rest))
+(struct _seq (hd rest) #:transparent)
 
 ;; def, equivalent to define in racket
-(struct def (var e))
+(struct def (var e) #:transparent)
 
 ;; convert racketlist to mupllist
 (define (racketlist->mupllist list)
@@ -363,3 +364,31 @@
                  (seq (_modify-env var0)
                       (_modify-env var-rest) ...
                       body)))]))
+
+
+(define-syntax ampair
+  (syntax-rules ()
+    [(ampair e1 e2)
+     (apair (newref! e1) (newref! e2))]))
+
+(define-syntax amlist
+  (syntax-rules ()
+    [(amlist)
+     (newref! (aunit))]
+    [(amlist e1 e-rest ...)
+     (apair (newref! e1) (newref! (amlist e-rest ...)))]))
+
+(define-syntax mfst
+  (syntax-rules ()
+    [(mfst mpair-e)
+     (deref (fst mpair-e))]))
+
+(define-syntax msnd
+  (syntax-rules ()
+    [(msnd mpair-e)
+     (deref (snd mpair-e))]))
+
+(define-syntax set-mfst!
+  (syntax-rules ()
+    [(set-mfst! mpair-e v)
+     (setref! (fst mpair-e) v)]))
