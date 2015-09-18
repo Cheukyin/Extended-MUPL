@@ -131,7 +131,8 @@
            (λ (env)
              (let ([refv (loc-proc env)])
               (if (ref? refv)
-               (vector-set! storage (ref-v refv) (v-proc env))
+               (let ([val (v-proc env)])
+                (vector-set! storage (ref-v refv) val))
                (error "MUPL setref applied to non-ref")))))]
         
         [(if-then-else? e)
@@ -392,3 +393,8 @@
   (syntax-rules ()
     [(set-mfst! mpair-e v)
      (setref! (fst mpair-e) v)]))
+
+(define-syntax set-msnd!
+  (syntax-rules ()
+    [(set-msnd! mpair-e v)
+     (setref! (snd mpair-e) v)]))

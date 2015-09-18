@@ -243,13 +243,20 @@
                          (check-equal? (int 3)
                                        (eval-exp (mfst (msnd (msnd
                                                              (amlist (int 1) (int 2) (int 3) (int 4)))))))
-                         ;; sth strange!!!!!! can't pass
-;                         (check-equal? (int 4)
-;                                       (eval-exp (seq
-;                                                  (def "mlist" (amlist (int 6) (int 2) (int 3)))
-;                                                  (set-mfst! (var "mlist")
-;                                                             (apair (newref! (int 7)) (newref! (int 7))))
-;                                                  (mfst (var "mlist")))))
+                         
+                         (check-equal? (int 4)
+                                       (eval-exp (seq
+                                                  (def "mlist" (amlist (int 6) (int 2) (int 3)))
+                                                  (set-mfst! (var "mlist")
+                                                             (amlist (int 1) (int 4)))
+                                                  (mfst (msnd (mfst (var "mlist")))))))
+                         
+                         (check-equal? (int 6) ;; "mlist" is ring
+                                       (eval-exp (seq
+                                                  (def "mlist" (amlist (int 6) (int 2)))
+                                                  (set-msnd! (var "mlist")
+                                                             (var "mlist"))
+                                                  (mfst (msnd (msnd (var "mlist")))))))
                          )
               )
   )
