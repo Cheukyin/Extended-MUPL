@@ -29,6 +29,8 @@
 (struct deref (loc) #:transparent) ;; read the value stored in loc, loc must be a ref type
 (struct setref! (loc v) #:transparent) ;; set the content of loc as v, loc must be a ref type
 
+(struct call-cc (fn) #:transparent) ;; equivalent to call/cc in Racket
+
 
 ;;; used by interpreter program only
 
@@ -205,14 +207,6 @@
                                                  (e4proc env cont))
                                              (error "MUPL ifgreater applied to non-number"))))))))]
         
-        ;; lexical scoped function
-        [(_fun? e)
-         (let ([fn-name (_fun-nameopt e)]
-               [fn-var-list (_fun-var-list e)]
-               [fn-body (syntactic-analyze (_fun-body e))])
-           (λ (env cont)
-             (cont (closure env (_fun fn-name fn-var-list fn-body)))))]
-        
         ;; (_seq (hd rest)), sequential exps
         [(_seq? e)
          (let ([hd-proc (syntactic-analyze (_seq-hd e))]
@@ -246,6 +240,33 @@
                (hash-update! parent-env var (λ (_) val)
                              (λ () (error "unbound variable" var))))
              (cont (aunit))))]
+        
+        ;; lexical scoped function
+        [(_fun? e)
+         (let ([fn-name (_fun-nameopt e)]
+               [fn-var-list (_fun-var-list e)]
+               [fn-body (syntactic-analyze (_fun-body e))])
+           (λ (env cont)
+             (cont (closure env (_fun fn-name fn-var-list fn-body)))))]
+        
+        ;; (struct call-cc (fn)), call/cc
+        ;; wrap the current continuation in a closure and pass it to fn,
+        ;; then call fn with cont-closure as its param
+        [(call-cc? e)
+         (let ([funexp-proc (syntactic-analyze (call-cc-fn e))])
+           (λ (env cont)
+             (funexp-proc env (λ (clos)
+                                (if (closure? clos)
+                                    (let ([cur-env (make-hash)]
+                                          [fn (closure-fun clos)]
+                                          [fn-env (closure-env clos)])
+                                      (hash-set! cur-env
+                                                 (car (_fun-var-list fn))
+                                                 (closure null (_fun #f (list "val") ;; cont-closure shouldn't related to any env
+                                                                     (λ (env _cont) (cont (envlookup env "val"))))))
+                                      ((_fun-body fn) (cons cur-env fn-env)
+                                                      cont))
+                                    (error "MUPL call-cc applied to non-function"))))))]
         
         ;; function call,
         ;; (struct _fun  (nameopt var-list body))
@@ -282,6 +303,7 @@
                                                                                     (fn-body-proc fn-body-env cont))))))
                                     
                                     (error "MUPL call applied to non-function"))))))]
+        
         
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
@@ -372,6 +394,7 @@
                       (_modify-env var-rest) ...
                       body)))]))
 
+;; ---- mutable ------
 
 (define-syntax ampair
   (syntax-rules ()
