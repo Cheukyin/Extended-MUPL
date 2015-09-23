@@ -31,6 +31,11 @@
 
 (struct call-cc (fn) #:transparent) ;; equivalent to call/cc in Racket
 
+(struct try-catch-except (try-exp catch-var except-handler) #:transparent) ;; exception
+(struct raise (except)) ;; raise an exception
+(define except-handler (λ (val) (error "exception caught:" val))) ;; global exception handler
+(define (set-except-handler! new-except-handler) (set! except-handler new-except-handler)) ;; set the global exception handler
+
 
 ;;; used by interpreter program only
 
@@ -227,6 +232,31 @@
              (e-proc env (λ (val)
                            (hash-set! (car env) var val)
                            (cont (aunit))))))]
+        
+        ;; (struct raise (except))
+        ;; raise an exception
+        ([raise? e]
+         (let ([raise-proc (syntactic-analyze (raise-except e))])
+           (λ (env cont)
+             (raise-proc env except-handler))))
+        
+        ;; (struct try-catch-except (try-exp catch-var except-handler))
+        ;; exception
+        [(try-catch-except? e)
+         (let ([try-proc (syntactic-analyze (try-catch-except-try-exp e))]
+               [catch-var (try-catch-except-catch-var e)]
+               [except-proc (syntactic-analyze (try-catch-except-except-handler e))])
+           (λ (env cont)
+             (let ([old-except-handler except-handler])
+               (set-except-handler! (λ (val) ;; set the new excpet-handler
+                                      (set-except-handler! old-except-handler) ;; restore the original except-handler
+                                      (except-proc (let ([ext-env (make-hash)]) ;; extend env with catch-var, run except-handler
+                                                     (hash-set! ext-env catch-var val)
+                                                     (cons ext-env env))
+                                                   cont)))
+               (try-proc env (λ (val)
+                               (set-except-handler! old-except-handler) ;; try returns normally, then restore the original except-handler
+                               (cont val))))))]
         
         ;; used in mletrec,
         ;; modify the var's binding

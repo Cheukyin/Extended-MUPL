@@ -290,6 +290,35 @@
                                                                   (var "k")))
                                                        (int 3))))
                          )
+              
+              (test-case "exception"
+                         (check-equal? (int 11)
+                                       (eval-exp
+                                        (add (int 2)
+                                             (try-catch-except (mletrec (["recfn" (fun #f ("n")
+                                                                                       (ifgreater (var "n") (int 4)
+                                                                                                  (raise (var "n"))
+                                                                                                  (call (var "recfn") (add (int 1) (var "n")))))])
+                                                                        (call (var "recfn") (int 0)))
+                                                               "e"
+                                                               (add (int 4) (var "e"))))))
+                         (check-equal? (int 19) ;; check if exception is dynamic scoping
+                                       (eval-exp
+                                        (seq (def "foo" (fun #f ()
+                                                             (try-catch-except (fun #f () (raise (int 9)))
+                                                                               "e"
+                                                                               (add (var "e")(int 9999))))) ;; never exec
+                                             (try-catch-except (call (call (var "foo")))
+                                                               "e"
+                                                               (add (int 10)(var "e"))))))
+                         (check-equal? (int 14) ;; exception propogation
+                                       (eval-exp (try-catch-except (add (int 1)
+                                                                        (try-catch-except (raise (int 4))
+                                                                                          "e"
+                                                                                          (raise (add (int 2) (var "e")))))
+                                                                   "e"
+                                                                   (add (var "e") (int 8)))))
+                         )
               )
   )
 
