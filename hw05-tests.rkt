@@ -251,7 +251,7 @@
                                                              (amlist (int 1) (int 4)))
                                                   (mfst (msnd (mfst (var "mlist")))))))
                          
-                         (check-equal? (int 6) ;; "mlist" is ring
+                         (check-equal? (int 6) ;; "mlist" is a ring
                                        (eval-exp (seq
                                                   (def "mlist" (amlist (int 6) (int 2)))
                                                   (set-msnd! (var "mlist")
