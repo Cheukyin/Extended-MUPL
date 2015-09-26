@@ -66,14 +66,14 @@
                          (check-equal? (int 11) (eval-exp (if-then-else (bool F) (int 10) (int 11))))
                          )
               
-              (test-case "ifgreater"
+              (test-case "comparing"
                          (let ([e1 (add (int 2) (int 3))]
                                [e2 (int 8)]
                                [e3 (add (int 2) (int 5))]
                                [e4 (add (int 4) (int 5))])
-                           (check-equal? (int 9) (eval-exp (ifgreater e1 e2 e3 e4)))
-                           (check-equal? (int 7) (eval-exp (ifgreater e2 e1 e3 e4)))
-                           )
+                           (check-equal? (int 9) (eval-exp (if-then-else (isgreater e1 e2) e3 e4)))
+                           (check-equal? (int 7) (eval-exp (if-then-else (isless e1 e2) e3 e4)))
+                           (check-equal? (int 7) (eval-exp (if-then-else (isequal e1 e1) e3 e4))))
                          )
               
               (test-case "fst && snd"
@@ -106,10 +106,10 @@
                          (check-equal? (int 5) ;; test recursive
                                        (eval-exp
                                         (call (fun "find-fst-greater-than-3" ("list")
-                                                   (ifgreater (fst (var "list")) (int 3)
-                                                              (fst (var "list"))
-                                                              (call (var "find-fst-greater-than-3")
-                                                                    (snd (var "list")))))
+                                                   (if-then-else (isgreater (fst (var "list")) (int 3))
+                                                                 (fst (var "list"))
+                                                                 (call (var "find-fst-greater-than-3")
+                                                                       (snd (var "list")))))
                                               (alist (int 1) (int 2) (int 3) (int 2) (int 5) (int 4)))))
                          (check-equal? (int 5) ;; fn without args
                                        (eval-exp (call (fun #f () (int 5)))))
@@ -125,11 +125,11 @@
                                                        (add (int 1) (var "k")))))
                          (check-equal? (int 10) ;; test recursive
                                        (eval-exp (mlet (["sum-seq" (fun "sum-seq" ("n") ;; sum-seq = λn.0+1+...+n
-                                                                        (ifgreater (var "n") (int 0)
-                                                                                   (add (var "n")
-                                                                                        (call (var "sum-seq")
-                                                                                              (add (int -1) (var "n"))))
-                                                                                   (var "n")))])
+                                                                        (if-then-else (isgreater (var "n") (int 0))
+                                                                                      (add (var "n")
+                                                                                           (call (var "sum-seq")
+                                                                                                 (add (int -1) (var "n"))))
+                                                                                      (var "n")))])
                                                        (call (var "sum-seq") (int 4)))))
                          (check-equal? (int 3) ;; mlet without args
                                        (eval-exp (mlet () (add (int 1) (int 2)))))
@@ -146,11 +146,11 @@
                                                             (mlet "fib-iter" (["a" (int 1)]
                                                                               ["b" (int 0)]
                                                                               ["count" (var "n")])
-                                                                  (ifgreater (var "count") (int 0)
-                                                                             (call (var "fib-iter")
-                                                                                   (add (var "a") (var "b"))
-                                                                                   (var "a") (add (var "count") (int -1)))
-                                                                             (var "b"))))
+                                                                  (if-then-else (isgreater (var "count") (int 0))
+                                                                                (call (var "fib-iter")
+                                                                                      (add (var "a") (var "b"))
+                                                                                      (var "a") (add (var "count") (int -1)))
+                                                                                (var "b"))))
                                                        (int 6)))))
               
               (test-case "mlet*"
@@ -168,15 +168,15 @@
                          (check-equal? (int 0)
                                        (eval-exp (call (fun #f ("x")
                                                             (mletrec (["even?" (fun #f ("n")
-                                                                                    (ifgreater (var "n") (int 0)                                                                                               
-                                                                                               (call (var "odd?")
-                                                                                                     (add (var "n") (int -1)))
-                                                                                               (int 1)))]
+                                                                                    (if-then-else (isgreater (var "n") (int 0))                                                                                              
+                                                                                                  (call (var "odd?")
+                                                                                                        (add (var "n") (int -1)))
+                                                                                                  (int 1)))]
                                                                       ["odd?" (fun #f ("n")
-                                                                                   (ifgreater (var "n") (int 0)
-                                                                                              (call (var "even?")
-                                                                                                    (add (var "n") (int -1)))
-                                                                                              (int 0)))])
+                                                                                   (if-then-else (isgreater (var "n") (int 0))
+                                                                                                 (call (var "even?")
+                                                                                                       (add (var "n") (int -1)))
+                                                                                                 (int 0)))])
                                                                      (call (var "odd?") (var "x"))))
                                                        (int 8)))))
               
@@ -296,9 +296,9 @@
                                        (eval-exp
                                         (add (int 2)
                                              (try-catch-except (mletrec (["recfn" (fun #f ("n")
-                                                                                       (ifgreater (var "n") (int 4)
-                                                                                                  (raise (var "n"))
-                                                                                                  (call (var "recfn") (add (int 1) (var "n")))))])
+                                                                                       (if-then-else (isgreater (var "n") (int 4))
+                                                                                                     (raise (var "n"))
+                                                                                                     (call (var "recfn") (add (int 1) (var "n")))))])
                                                                         (call (var "recfn") (int 0)))
                                                                "e"
                                                                (add (int 4) (var "e"))))))

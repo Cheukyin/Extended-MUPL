@@ -8,14 +8,16 @@
 
 (struct int  (num)    #:transparent)  ;; a constant number, e.g., (int 17)
 (struct add  (e1 e2)  #:transparent)  ;; add two expressions
-(struct ifgreater (e1 e2 e3 e4)    #:transparent) ;; if e1 > e2 then e3 else e4
+(struct isgreater (e1 e2) #:transparent) ;; T if e1 > e2, F otherwise
+(struct isless (e1 e2) #:transparent) ;; T if e1 < e2, F otherwise
+(struct isequal (e1 e2) #:transparent) ;; T if e1 = e2, F otherwise
 
 (struct apair (e1 e2)     #:transparent) ;; make a new pair
 (struct fst  (e)    #:transparent) ;; get first part of a pair
 (struct snd  (e)    #:transparent) ;; get second part of a pair
 
 (struct aunit ()    #:transparent) ;; unit value -- good for ending a list
-(struct isaunit (e) #:transparent) ;; evaluate to 1 if e is unit else 0
+(struct isaunit (e) #:transparent) ;; evaluate to T if e is unit else F
 
 (struct bool (e) #:transparent) ;; boolean, T or F
 (define T 'T) ;; true
@@ -86,7 +88,7 @@
 ;; and a pointer pointing to its parent's env
 ;; hash-table -> hash-tabl -> hash-table -> ... -> null
 
-;; cont fn:
+;; cont:
 ;; (λ (val) ...)
 
 ;; lookup a variable in an environment
@@ -104,6 +106,15 @@
 
 ;; analyze the syntactic of an exp, then return a proc that takes env as its param
 (define (syntactic-analyze e)
+  
+  (define (eval-binary-op exp selector1 selector2 calc-proc)
+    (let ([e1proc (syntactic-analyze (selector1 e))]
+          [e2proc (syntactic-analyze (selector2 e))])
+      (λ (env cont)
+        (e1proc env (λ (v1)
+                      (e2proc env (λ (v2)
+                                    (cont (calc-proc v1 v2)))))))))
+  
   (cond [(var? e)
          (λ (env cont)
            (cont (envlookup env (var-string e))))] ;; lookup var in the env
@@ -184,33 +195,36 @@
                               (cont (apair-e2 val))
                               (error "MUPL snd applied to non-apair"))))))]
         
+        
         ;; (add e1 e2) = e1 + e2 iff e1 and e2 are int type
         [(add? e)
-         (let ([e1proc (syntactic-analyze (add-e1 e))]
-               [e2proc (syntactic-analyze (add-e2 e))])
-           (λ (env cont)
-             (e1proc env (λ (v1)
-                           (e2proc env (λ (v2)
-                                         (if (and (int? v1)
-                                                  (int? v2))
-                                             (cont (int (+ (int-num v1) 
-                                                           (int-num v2))))
-                                             (error "MUPL addition applied to non-number"))))))))]
+         (eval-binary-op e add-e1 add-e2 (λ (v1 v2)
+                                           (int (+ (int-num v1) 
+                                                   (int-num v2)))))]
         
-        ;; (ifgreater e1 e2 e3 e4), eval e1 and e2 first, if e1 and e2 are int type, ...
-        [(ifgreater? e)
-         (let ([e1proc (syntactic-analyze (ifgreater-e1 e))]
-               [e2proc (syntactic-analyze (ifgreater-e2 e))]
-               [e3proc (syntactic-analyze (ifgreater-e3 e))]
-               [e4proc (syntactic-analyze (ifgreater-e4 e))])
-           (λ (env cont)
-             (e1proc env (λ (v1)
-                           (e2proc env (λ (v2)
-                                         (if (and (int? v1) (int? v2))
-                                             (if (> (int-num v1) (int-num v2))
-                                                 (e3proc env cont)
-                                                 (e4proc env cont))
-                                             (error "MUPL ifgreater applied to non-number"))))))))]
+        ;; (struct isgreater (e1 e2)) , T if e1 > e2, F otherwise
+        [(isgreater? e)
+         (eval-binary-op e isgreater-e1 isgreater-e2 (λ (v1 v2)
+                                                       (if  (> (int-num v1) 
+                                                               (int-num v2))
+                                                            (bool T)
+                                                            (bool F))))]
+        
+        ;; (struct isless (e1 e2)) , T if e1 < e2, F otherwise
+        [(isless? e)
+         (eval-binary-op e isless-e1 isless-e2 (λ (v1 v2)
+                                                 (if  (< (int-num v1) 
+                                                         (int-num v2))
+                                                      (bool T)
+                                                      (bool F))))]
+        
+        ;; (struct isequal (e1 e2)) , T if e1 = e2, F otherwise
+        [(isequal? e)
+         (eval-binary-op e isequal-e1 isequal-e2 (λ (v1 v2)
+                                                   (if  (= (int-num v1) 
+                                                           (int-num v2))
+                                                        (bool T)
+                                                        (bool F))))]
         
         ;; (_seq (hd rest)), sequential exps
         [(_seq? e)
