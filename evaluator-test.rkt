@@ -1,10 +1,30 @@
 #lang racket
 
-(require rackunit "hw05.rkt")
+(require rackunit "main.rkt" "ast-struct.rkt")
 (require rackunit/text-ui)
 
-(define MUPL-TESTS
-  (test-suite "Tests For Extended MUPL Interpreter"
+;; convert racketlist to mupllist
+(define (racketlist->mupllist list)
+  (if (null? list)
+      (aunit)
+      (apair (let ([ head (car list) ])
+               (if (pair? head)
+                   (racketlist->mupllist head)
+                   head))
+             (racketlist->mupllist (cdr list)))))
+
+;; convert mupllist to racketlist
+(define (mupllist->racketlist list)
+  (if (aunit? list)
+      null
+      (cons (let ([ head (apair-e1 list) ])
+              (if (apair? head)
+                  (mupllist->racketlist head)
+                  head))
+            (mupllist->racketlist (apair-e2 list)))))
+
+(define MUPL-Evaluator-TESTS
+  (test-suite "Tests For Extended MUPL Evaluator"
               (test-case "racketlist->mupllist"
                          (check-equal?
                           (apair (int 3) (apair (int 4) (apair (int 9) (aunit))))
@@ -41,13 +61,6 @@
                           (racketlist->mupllist (list (list (int 3) (int 4) (list (int 5) (int 9)))
                                                       (int 6)
                                                       (list (int 0) (list (int 2) (list (int 3) (int 8))))))))
-              
-              (test-case "envlookup"
-                         (let ([ht1 (hash "v1" (int 1) "v2" (int 2))]
-                               [ht2 (hash "v3" (int 3) "v4" (int 4))])                      
-                           (let ([env (list ht1 ht2)])
-                             (check-equal? (int 1) (envlookup env "v1"))
-                             (check-equal? (int 4) (envlookup env "v4")))))
               
               (test-case "eval on values"
                          (check-equal? (int 4) (eval-exp (int 4)))
@@ -323,4 +336,4 @@
   )
 
 
-(run-tests MUPL-TESTS)
+(run-tests MUPL-Evaluator-TESTS)
