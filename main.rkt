@@ -75,8 +75,8 @@
            (mlet* ([var-rest val-rest] ...)
                   body))]))
 
-;; (mletrec ([var0 val0] ...) body) = (mlet ([var0 (aunit] ...)
-;;                                       (mlet ([var0.__tmp__ val0] ...)
+;; (mletrec ([var0 val0] ...) body) = (let ([var0 (aunit] ...)
+;;                                       (let ([var0.__tmp__ val0] ...)
 ;;                                          (seq (_modify-env var0)
 ;;                                               (_modify-env var-rest) ...
 ;;                                               body)))
@@ -87,12 +87,7 @@
      body]
     [(mletrec ([var0 val0] [var-rest val-rest]  ...)
               body)
-     (mlet ([var0 (aunit)] [var-rest (aunit)] ...)
-           (mlet ([(string-append var0 tmpstr) val0]
-                  [(string-append var-rest tmpstr) val-rest] ...)
-                 (seq (_modify-env var0)
-                      (_modify-env var-rest) ...
-                      body)))]))
+     (_letrec (list var0 var-rest ...) (list val0 val-rest ...) body)]))
 
 ;; ---- mutable ------
 

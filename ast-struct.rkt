@@ -35,6 +35,8 @@
 
 ;;; used by interpreter program only
 
+;; dummy, can be any type
+(struct dummy ())
 
 ;; a closure is not in "source" programs; it is what functions evaluate to
 (struct closure (env fun) #:transparent)
@@ -42,10 +44,8 @@
 (struct _fun  (nameopt var-list body) #:transparent)
 ;; function call, !!!assume the length of two lists are the same
 (struct _call (funexp val-list)       #:transparent)
-
-(define tmpstr ".__tmp__.__tmp__.") ;; used by letrec
-;; used in mletrec, modify the binding of var in the parent env
-(struct _modify-env (var) #:transparent)
+;; letrec, !!!assume the length of two lists are the same
+(struct _letrec (var-list val-list body) #:transparent)
 
 ;; sequential exp
 (struct _seq (hd rest) #:transparent)

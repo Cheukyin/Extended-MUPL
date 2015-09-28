@@ -42,6 +42,17 @@
                       (e2proc env (λ (v2)
                                     (cont (calc-proc v1 v2)))))))))
   
+  (define (hash-var-val var-list val-proc-list val-env fn-body-env cont)
+    (if (null? var-list)
+        (cont null)
+        ((car val-proc-list) val-env (λ (val)
+                                       (hash-set! (car fn-body-env) (car var-list) val)
+                                       (hash-var-val (cdr var-list)
+                                                     (cdr val-proc-list)
+                                                     val-env
+                                                     fn-body-env
+                                                     cont)))))
+  
   (cond [(var? e)
          (λ (env cont)
            (cont (envlookup env (var-string e))))] ;; lookup var in the env
@@ -198,19 +209,7 @@
                (try-proc env (λ (val)
                                (set-except-handler! old-except-handler) ;; try returns normally, then restore the original except-handler
                                (cont val))))))]
-        
-        ;; used in mletrec,
-        ;; modify the var's binding
-        [(_modify-env? e)
-         (let ([var (_modify-env-var e)])
-           (λ (env cont)
-             (let* ([cur-env (car env)]
-                    [parent-env (cadr env)]
-                    [val (hash-ref cur-env (string-append var tmpstr)
-                                   (λ () (error "unbound variable" (string-append var tmpstr))))])
-               (hash-update! parent-env var (λ (_) val)
-                             (λ () (error "unbound variable" var))))
-             (cont (aunit))))]
+              
         
         ;; lexical scoped function
         [(_fun? e)
@@ -239,6 +238,19 @@
                                                       cont))
                                     (error "MUPL call-cc applied to non-function"))))))]
         
+        [(_letrec? e)
+         (let ([var-list (_letrec-var-list e)]
+               [val-proc-list (map syntactic-analyze (_letrec-val-list e))]
+               [fn-body-proc (syntactic-analyze (_letrec-body e))])
+           (λ (env cont)
+             (let* ([cur-env (make-hash)]
+                   [ext-env (cons cur-env env)])
+               (map (λ (var) (hash-set! cur-env var (dummy)))
+                    var-list) ;; extend env, and map each var to (dummy), will be modified later
+               ;; bind the var-val pairs
+               (hash-var-val var-list val-proc-list ext-env ext-env (λ (val)
+                                                                      (fn-body-proc ext-env cont))))))]
+        
         ;; function call,
         ;; (struct _fun  (nameopt var-list body))
         ;; (struct _call (funexp val-list))
@@ -257,21 +269,13 @@
                                            [fn-body-env (cons cur-env fn-env)]) ;; extend env
                                       
                                       (begin
-                                        (if fn-name
-                                            (hash-set! cur-env fn-name clos) ;; fn-name != #f, bind the function name : function body
+                                        (if fn-name ;; fn-name != #f, bind the function name : function body
+                                            (hash-set! cur-env fn-name clos)
                                             null)
                                         
-                                        ;; bind the var-val pairs
-                                        (letrec ([hash-var-val (λ (var-list val-proc-list cont)
-                                                                 (if (null? var-list)
-                                                                     (cont null)
-                                                                     ((car val-proc-list) env (λ (val)
-                                                                                                (hash-set! cur-env (car var-list) val)
-                                                                                                (hash-var-val (cdr var-list)
-                                                                                                              (cdr val-proc-list)
-                                                                                                              cont)))))])
-                                          (hash-var-val fn-var-list val-proc-list (λ (val)
-                                                                                    (fn-body-proc fn-body-env cont))))))
+                                        (hash-var-val fn-var-list val-proc-list env fn-body-env 
+                                                      (λ (val)
+                                                        (fn-body-proc fn-body-env cont)))))
                                     
                                     (error "MUPL call applied to non-function"))))))]
         
