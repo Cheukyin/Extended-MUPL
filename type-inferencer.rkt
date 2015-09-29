@@ -7,15 +7,20 @@
 ;; subst for substition, is a hash-table( key is type-var, value is its concrete type)
 ;; Caveat: this proc has side effect on subst
 (define (type-of-under-env-subst exp env subst)
-  (match exp
-    [(int val)
-     (int-type)]
-    
-    [(bool val)
-     (bool-type)]
-    
-    [(var v)
-     (envlookup env v)]))
+  (define (_type_of exp env kont)
+    (match exp
+      [(int val)
+       (int-type)]
+      
+      [(bool val)
+       (bool-type)]
+      
+      [(var v)
+       (envlookup env v)]))
+  
+  (call/cc 
+   (λ (kont)
+     (_type_of exp env kont))))
 
 
 (define (envlookup env var)
@@ -29,8 +34,7 @@
 ;; if no inconsistency or violation occurs
 ;; otherwise, printx the error and the exp that cause the error
 ;;            then return the error equation (t-lhs . t-rhs)
-(define (unifier type-lhs type-rhs subst exp)
-  (define (_unifier type-lhs type-rhs kont)
+(define (unifier type-lhs type-rhs subst exp kont)
     (let ([t-lhs (apply-subst-to-type type-lhs subst)]
           [t-rhs (apply-subst-to-type type-rhs subst)])
       (cond
@@ -49,21 +53,17 @@
                     'ok))]
         
         [(and (->? t-lhs) (->? t-rhs)) ;; proc type
-         (_unifier (->-arg-type t-lhs) (->-arg-type t-rhs) kont)
-         (_unifier (->-result-type t-lhs) (->-result-type t-rhs) kont)
+         (unifier (->-arg-type t-lhs) (->-arg-type t-rhs) subst exp kont)
+         (unifier (->-result-type t-lhs) (->-result-type t-rhs) subst exp kont)
          'ok]
         
         [(and (pair-type? t-lhs) (pair-type? t-rhs)) ;; pair type
-         (_unifier (pair-type-t1 t-lhs) (pair-type-t1 t-rhs) kont)
-         (_unifier (pair-type-t2 t-lhs) (pair-type-t2 t-rhs) kont)
+         (unifier (pair-type-t1 t-lhs) (pair-type-t1 t-rhs) subst exp kont)
+         (unifier (pair-type-t2 t-lhs) (pair-type-t2 t-rhs) subst exp kont)
          'ok]
         
         [else
          (kont (report-type-error "type-inconsistency:" exp t-lhs t-rhs))])))
-  
-  (call/cc 
-   (λ (kont)
-     (_unifier type-lhs type-rhs kont))))
 
 
 ;; check if tvar occurs in type
