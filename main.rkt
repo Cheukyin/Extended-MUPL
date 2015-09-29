@@ -4,9 +4,12 @@
 
 (require "ast-struct.rkt")
 (require "evaluator.rkt")
+(require "type-inferencer.rkt")
 (provide (all-defined-out))
 
 
+(define (type-of e)
+  (type-of-under-env-subst e (list (make-hash)) (make-hash)))
 
 ;; evaluate the expression e under the top env and the top continuation
 (define (eval-exp e)

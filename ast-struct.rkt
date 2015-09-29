@@ -1,5 +1,5 @@
 #lang racket
-(provide (all-defined-out)) ;; so we can put tests in a second file
+(provide (all-defined-out))
 
 ;; definition of structures for  MUPL programs
 (struct var  (string) #:transparent)  ;; a variable, e.g., (var "foo")
