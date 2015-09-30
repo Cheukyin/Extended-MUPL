@@ -33,7 +33,7 @@
 (define-syntax fun
   (syntax-rules ()
     [(fun fn-name () body)
-     (_fun fn-name (list "") body)]
+     (_fun fn-name (list (aunit)) body)]
     [(fun fn-name (var0 var-rest ...) body)
      (_fun fn-name (list var0 var-rest ...) body)]))
 
