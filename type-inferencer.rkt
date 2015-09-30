@@ -89,6 +89,30 @@
        (hash-set! (car env) v
                   (_type_of e env kont))]
       
+      ;; (arg1, .., argn): (t1, ..., tn), env
+      ;; fn-body: tbody, [arg1: t1, ..., argn: tn, fn-name: tf]env
+      ;; -->
+      ;; tf = (arg1, ..., argn) -> tbody, env
+      [(_fun fn-name fn-var-list fn-body)
+       (let* ([fn-env (make-hash)] ;; create a new env
+              [fn-t (fresh-type-var)] ;; type of the function
+              [arg-type-list (if (equal? fn-var-list (list (aunit)))
+                                 (list (unit-type)) ;; if no args
+                                 (map (λ (arg) ;; map arg types in fn-env and return a list of arg-type
+                                        (let ([t (fresh-type-var)])
+                                          (hash-set! fn-env arg t)
+                                          t))
+                                      fn-var-list))])
+         (if fn-name ;; if not anonymous function, map fn-t in fn-env
+             (hash-set! fn-env fn-name fn-t)
+             null)
+         ;; infer type of fn-body
+         (let ([t-body (_type_of fn-body (cons fn-env env) kont)])
+           ;; add fn-t = arg-type-list -> t-body to subst
+           (unifier fn-t (-> arg-type-list t-body) subst exp kont)
+           ;; return type the funtion
+           fn-t))]
+      
       ;; lookup v's type
       [(var v) ;; !!!!!!!!! very strange, v captured hear is a var struct
        ;; (envlookup env v)
@@ -133,6 +157,21 @@
              (begin (extend-subst t-rhs t-lhs subst)
                     'ok))]
         
+        ;; function args type list
+        [(and (list? t-lhs) (list? t-rhs))
+         (let ([hd-lhs (car t-lhs)]
+               [hd-rhs (car t-rhs)]
+               [tl-lhs (cdr t-lhs)]
+               [tl-rhs (cdr t-rhs)])
+           (unifier hd-lhs hd-rhs subst exp kont)
+           (if (and (not (null? tl-lhs))
+                    (not (null? tl-rhs)))
+               (unifier tl-lhs tl-lhs subst exp kont)
+               (if (or (not (null? tl-lhs))
+                       (not (null? tl-rhs)))
+                   (kont (report-type-error "len of args different" exp t-lhs t-rhs))
+                   'ok)))]
+        
         [(and (->? t-lhs) (->? t-rhs)) ;; proc type
          (unifier (->-arg-type t-lhs) (->-arg-type t-rhs) subst exp kont)
          (unifier (->-result-type t-lhs) (->-result-type t-rhs) subst exp kont)
@@ -157,12 +196,23 @@
     [(int-type) #f]
     [(bool-type) #f]
     [(unit-type) #f]
+    
     [(ref-type t) (tvar-occur-in-type? tvar t)]
+    
     [(pair-type t1 t2) (and (tvar-occur-in-type? tvar t1)
                             (tvar-occur-in-type? tvar t2))]
+    
+    ;; function args type list
+    [(cons hd tl)
+     (or (tvar-occur-in-type? tvar hd)
+         (if (null? tl)
+             #f
+             (tvar-occur-in-type? tvar tl)))]
+    
     [(-> arg-type result-type)
      (or (tvar-occur-in-type? tvar arg-type)
          (tvar-occur-in-type? tvar result-type))]
+    
     [(type-var num) (equal? type tvar)]))
 
 
@@ -208,6 +258,13 @@
      (pair-type (apply-one-subst t1 tvar type)
                  (apply-one-subst t2 tvar type))]
     
+    ;; function args type list
+    [(cons hd tl)
+     (cons (apply-one-subst hd tvar type)
+           (if (null? tl)
+               null
+               (apply-one-subst tl tvar type)))]
+    
     [(-> arg-type result-type)
      (-> (apply-one-subst arg-type tvar type)
          (apply-one-subst result-type tvar type))]
@@ -237,6 +294,13 @@
     [(pair-type t1 t2)
      (pair-type (apply-subst-to-type t1 subst)
                 (apply-subst-to-type t2 subst))]
+    
+    ;; function args type list
+    [(cons hd tl)
+     (cons (apply-subst-to-type hd subst)
+           (if (null? tl)
+               null
+               (apply-subst-to-type tl subst)))]
     
     [(-> arg-type result-type)
      (-> (apply-subst-to-type arg-type subst)

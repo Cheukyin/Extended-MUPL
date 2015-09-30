@@ -4,7 +4,7 @@
 (struct int-type () #:transparent)
 (struct bool-type () #:transparent)
 (struct ref-type (t) #:transparent)
-(struct -> (arg-type result-type) #:transparent) ;; function type
+(struct -> (arg-type result-type) #:transparent) ;; function type, arg-type is a list
 (struct type-var (num) #:transparent) ;; type variable
 (struct pair-type (t1 t2) #:transparent)
 (struct unit-type () #:transparent) ;; type of (aunit)

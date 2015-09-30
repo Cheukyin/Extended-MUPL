@@ -27,6 +27,13 @@
                         (pair-type (_adj t1)
                                    (_adj t2))]
                        
+                       ;; function args
+                       [(cons hd tl)
+                        (cons (_adj hd)
+                              (if (null? tl)
+                                  null
+                                  (_adj tl)))]
+                       
                        [(-> arg-type result-type)
                         (-> (_adj arg-type)
                             (_adj result-type))]
@@ -166,6 +173,35 @@
                          (check-equal? (cons 'ok (unit-type))
                                        (type-of (seq (def "x" (deref (newref! (int 2))))
                                                      (add (var "x") (var "x")))))
+                         )
+              
+              (test-case "fun"
+                         (check-equal? (cons 'ok (-> (list (bool-type) (int-type))
+                                                     (int-type)))
+                                       (type-of (fun #f ("x" "y")
+                                                     (if-then-else (var "x")
+                                                                   (add (var "y")
+                                                                        (int 1))
+                                                                   (int 3)))))
+                         (check-equal? (cons 'ok (-> (list (type-var 1))
+                                                     (type-var 1)))
+                                       (adjust-type (type-of (fun "self" ("f")
+                                                                  (var "f")))))
+                         (check-equal? (cons 'error (cons (if-then-else (var "x")
+                                                                   (var "x")
+                                                                   (add (int 1) (var "y")))
+                                                          (cons (bool-type) (int-type))))
+                                       (type-of (fun #f ("x" "y") ;; inconsistency
+                                                     (if-then-else (var "x")
+                                                                   (var "x")
+                                                                   (add (int 1) (var "y"))))))
+                         (check-equal? (cons 'error (cons (fun "rec-fun" () 
+                                                               (var "rec-fun"))
+                                                          (cons (type-var 1)
+                                                                (-> (list (unit-type))
+                                                                    (type-var 1)))))
+                                       (adjust-type (type-of (fun "rec-fun" () ;; occurrence violation
+                                                                  (var "rec-fun")))))
                          )
               ))
 
