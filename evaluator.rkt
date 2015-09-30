@@ -55,7 +55,7 @@
   
   (cond [(var? e)
          (λ (env cont)
-           (cont (envlookup env (var-string e))))] ;; lookup var in the env
+           (cont (envlookup env (var-str e))))] ;; lookup var in the env
         
         [(mvalue? e)
          (λ (env cont)

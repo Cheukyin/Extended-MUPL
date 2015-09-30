@@ -2,7 +2,7 @@
 (provide (all-defined-out))
 
 ;; definition of structures for  MUPL programs
-(struct var  (string) #:transparent)  ;; a variable, e.g., (var "foo")
+(struct var  (str) #:transparent)  ;; a variable, e.g., (var "foo")
 
 (struct int  (num)    #:transparent)  ;; a constant number, e.g., (int 17)
 (struct add  (e1 e2)  #:transparent)  ;; add two expressions
