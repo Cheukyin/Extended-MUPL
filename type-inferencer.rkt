@@ -115,6 +115,23 @@
            ;; return type the funtion
            fn-t))]
       
+      ;; let semantics
+      [(_call (_fun fn-name fn-var-list fn-body) val-list)
+       null]
+      
+      ;; call function defined elsewhere
+      ;; (val0, ..., valn): (t0, ..., tn), fn: (t0, ..., tn) -> t
+      ;; -->
+      ;; t
+      [(_call fn val-list)
+       (let ([fn-t (_type_of fn env kont)] ;; lookup fn's type
+             [val-type-list (map (λ (val) ;; infer val-list's type
+                                   (_type_of val env kont))
+                                 val-list)]
+             [t-result (fresh-type-var)]) ;; type calling result
+         (unifier fn-t (-> val-type-list t-result) subst exp kont) ;; fn-t = val-type-list -> t-result
+         t-result)]
+      
       ;; lookup v's type
       [(var v) ;; !!!!!!!!! very strange, v captured hear is a var struct
        ;; (envlookup env v)
