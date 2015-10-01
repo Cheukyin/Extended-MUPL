@@ -81,8 +81,10 @@
       
       ;; e1: t1, ..., ei: ti --> unit-type
       [(_seq hd tl)
-       (_type_of hd env kont)
-       (_type_of tl env kont)]
+       (let ([t-hd (_type_of hd env kont)])
+         (if (aunit? tl)
+             t-hd
+             (_type_of tl env kont)))]
       
       ;; e:t, env --> [v: t]env
       [(def v e)

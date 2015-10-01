@@ -149,7 +149,7 @@
                          )
               
               (test-case "seq"
-                         (check-equal? (cons 'ok (unit-type))
+                         (check-equal? (cons 'ok (bool-type))
                                        (type-of (seq (int 3)
                                                      (deref (newref! (aunit)))
                                                      (isaunit (deref (newref! (aunit)))))))
@@ -170,7 +170,7 @@
                                                      (if-then-else (var "x")
                                                                    (int 1)
                                                                    (int 2)))))
-                         (check-equal? (cons 'ok (unit-type))
+                         (check-equal? (cons 'ok (int-type))
                                        (type-of (seq (def "x" (deref (newref! (int 2))))
                                                      (add (var "x") (var "x")))))
                          )
