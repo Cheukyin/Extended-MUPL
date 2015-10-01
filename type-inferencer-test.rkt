@@ -202,6 +202,16 @@
                                                                     (type-var 1)))))
                                        (adjust-type (type-of (fun "rec-fun" () ;; occurrence violation
                                                                   (var "rec-fun")))))
+                         (check-equal? (cons 'ok (-> (list (int-type) (int-type))
+                                                     (-> (list (unit-type))
+                                                         (int-type))))
+                                       (type-of (seq (def "f1" (fun #f ()
+                                                                    (int 3)))
+                                                     (fun #f ("x" "y")
+                                                          (if-then-else (isless (var "x")
+                                                                                (var "y"))
+                                                                        (var "f1")
+                                                                        (var "f1"))))))
                          )
               ))
 
