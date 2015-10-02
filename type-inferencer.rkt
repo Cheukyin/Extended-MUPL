@@ -134,6 +134,38 @@
          ;; infer type of fn-body
          (_type_of fn-body (cons fn-env env) kont))]
       
+      
+      ;; letrec polymorphic
+      [(_letrec var-list val-list body)
+       (let* ([new-env (make-hash)]
+              [var-tvar-pair-list (map (λ (var) 
+                                         (let ([tvar (fresh-type-var)])
+                                           (hash-set! new-env var tvar) ;; hash new tvar into new-env
+                                           (cons var tvar))) ;; return var-tvar pairs
+                                       var-list)]) ;; allocate a new type-var for each var
+         (let* ([env (cons new-env env)] ;; extend env
+                [val-type-list (map (λ (val) (_type_of val env kont)) ;; infer type of val-list
+                                    val-list)])
+           ;;unifiy var-tvar-pair and val-type-list
+           (letrec ([unify-vart-valt (λ (var-tvar-list val-type-list)
+                                       (if (null? val-type-list)
+                                           null
+                                           (begin
+                                             (unifier (cdar var-tvar-list)
+                                                      (car val-type-list)
+                                                      subst exp kont)
+                                             (unify-vart-valt (cdr var-tvar-list)
+                                                              (cdr val-type-list)))))])
+             (unify-vart-valt var-tvar-pair-list val-type-list))
+           ;; generize and again hash into new-env
+           (map (λ (var-tvar)
+                  (hash-set! new-env
+                             (car var-tvar)
+                             (generize-type-exp (cdr var-tvar) subst)))
+                var-tvar-pair-list)
+           ;; infer type of body
+           (_type_of body env kont)))]
+      
      
       
       ;; (val0, ..., valn): (t0, ..., tn), fn: (t0, ..., tn) -> t

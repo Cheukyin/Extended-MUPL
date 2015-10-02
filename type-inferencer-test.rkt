@@ -266,7 +266,7 @@
                                                       (int 4))))
                          )
               
-              (test-case "call anonymous function, let semantics"
+              (test-case "call anonymous function, let semantics" ;; polymorphism supported
                          (check-equal? (cons 'ok (int-type))
                                        (type-of (mlet (["x" (int 3)]
                                                        ["f" (fun #f ("x") (add (var "x") (int 1)))])
@@ -288,6 +288,46 @@
                                                            (add (var "x")
                                                                 (int 1)))
                                                       (int 3))))
+                         )
+              
+              (test-case "letrec"
+                         (check-equal? (cons 'error (cons (call (var "f")
+                                                                (bool T))
+                                                          (cons (int-type)
+                                                                (bool-type))))
+                                       (type-of (mletrec (["f" (fun #f ("x")
+                                                                    (var "x"))]
+                                                          ["ff" (call (var "f") ;; f: int->int, no polymorphism
+                                                                      (int 1))])
+                                                         (if-then-else (call (var "f")
+                                                                             (bool T))
+                                                                       (call (var "f")
+                                                                             (int 3))
+                                                                       (int 4)))))
+                         (check-equal? (cons 'ok (int-type)) ;; letrec polymorphism
+                                       (type-of 
+                                        (call (fun #f ("x")
+                                                   (mletrec (["even?" (fun #f ("n")
+                                                                           (if-then-else (isgreater (var "n") (int 0))                                                                                              
+                                                                                         (call (var "odd?")
+                                                                                               (add (var "n") (int -1)))
+                                                                                         (int 1)))]
+                                                             ["f" (fun #f ("x") ;; should be polymorphic
+                                                                       (var "x"))]
+                                                             ["odd?" (fun #f ("n")
+                                                                          (if-then-else (isgreater (var "n") (int 0))
+                                                                                        (call (var "even?")
+                                                                                              (add (var "n") (int -1)))
+                                                                                        (int 0)))])
+                                                            (if-then-else (call (var "f")
+                                                                                (bool T))
+                                                                          (call (call (var "f")
+                                                                                      (var "odd?"))
+                                                                                (var "x"))
+                                                                          (call (var "even?")
+                                                                                (call (var "f")
+                                                                                      (var "x"))))))
+                                              (int 8))))
                          )
               ))
 
