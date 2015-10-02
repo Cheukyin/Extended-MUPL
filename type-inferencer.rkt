@@ -115,14 +115,42 @@
            ;; return type the funtion
            fn-t))]
       
-      ;; let semantics
-      [(_call (_fun fn-name fn-var-list fn-body) val-list)
-       null]
       
-      ;; call function defined elsewhere
+      ;; call anonymous function, let semantics
+      ;; types of val may be polymorphic
+      ;; (val0, ..., valn): (t0, ..., tn), env
+      ;; fn-body: t, [val0: t0, ..., valn: tn]env
+      ;; -->
+      ;; t
+      [(_call (_fun #f fn-var-list fn-body) val-list)
+       (let* ([fn-env (make-hash)] ;; create a new env
+              [val-type-list (if (equal? fn-var-list (list (aunit)))
+                                 (list (unit-type)) ;; if no args
+                                 (map (λ (val) ;; infer type of val-list return a list of val-type
+                                        (generize-type-exp (_type_of val env kont) subst)) ;; generize t if possible
+                                      val-list))])
+         ;; hash types of val into fn-env
+         (hash-var-val-list-into-env fn-var-list val-type-list fn-env)
+         ;; infer type of fn-body
+         (_type_of fn-body (cons fn-env env) kont))]
+      
+     
+      
       ;; (val0, ..., valn): (t0, ..., tn), fn: (t0, ..., tn) -> t
       ;; -->
       ;; t
+      
+      ;; call named function, polymorphisim not supported
+      [(_call (_fun fn-name fn-var-list fn-body) val-list)
+       (let ([fn-t (_type_of (_fun fn-name fn-var-list fn-body) env kont)] ;; infer fn's type
+             [val-type-list (map (λ (val) ;; infer val-list's type
+                                   (_type_of val env kont))
+                                 val-list)]
+             [t-result (fresh-type-var)]) ;; type calling result
+         (unifier fn-t (-> val-type-list t-result) subst exp kont) ;; fn-t = val-type-list -> t-result
+         t-result)]
+      
+      ;; call function defined elsewhere
       [(_call fn val-list)
        (let ([fn-t (_type_of fn env kont)] ;; lookup fn's type
              [val-type-list (map (λ (val) ;; infer val-list's type
@@ -132,6 +160,7 @@
          (unifier fn-t (-> val-type-list t-result) subst exp kont) ;; fn-t = val-type-list -> t-result
          t-result)]
       
+      
       ;; lookup v's type
       [(var v) ;; !!!!!!!!! very strange, v captured hear is a var struct
        ;; (envlookup env v)
@@ -139,6 +168,7 @@
       
       [_
        (error "error expression:" exp)]))
+  
   
   (call/cc 
    (λ (kont)
@@ -150,8 +180,75 @@
 (define (envlookup env var)
   (if (null? env)
       (error "unbound varible while type checking:" var)
-      (hash-ref (car env) var
-                (λ () (envlookup (cdr env) var)))))
+      (let ([t (hash-ref (car env) var
+                         (λ () (envlookup (cdr env) var)))])
+        (if (type-scheme? t)
+            (instantiate-type-scheme t) ;; if t is a type scheme, instantiate it
+            t))))
+
+
+(define (hash-var-val-list-into-env var-list val-list env)
+  (if (and (null? var-list)
+           (null? val-list))
+      null
+      (if (or (null? var-list)
+              (null? val-list))
+          (error "len of var and val different")
+          (begin
+            (hash-set! env (car var-list) (car val-list))
+            (hash-var-val-list-into-env (cdr var-list) (cdr val-list) env)))))
+
+
+(define (generize-type-exp type subst)
+  (letrec ([find-tvar (λ (t tvar-list) ;; generize type if any tvar is found
+                        (match t
+                          [(int-type)
+                           tvar-list]
+                          
+                          [(bool-type)
+                           tvar-list]
+                          
+                          [(unit-type)
+                           tvar-list]
+                          
+                          [(ref-type tr)
+                           (find-tvar tr tvar-list)]
+                          
+                          [(pair-type t1 t2)
+                           (let ([l (find-tvar t1 tvar-list)])
+                             (find-tvar t2 l))]
+                          
+                          ;; function args type list
+                          [(cons hd tl)
+                           (let ([l (find-tvar hd tvar-list)])
+                             (if (null? tl)
+                                 l
+                                 (find-tvar tl l)))]
+                          
+                          [(-> arg-type result-type)
+                           (let ([l (find-tvar arg-type tvar-list)])
+                             (find-tvar result-type l))]
+                          
+                          [(type-var num)
+                           (if (member t tvar-list)
+                               tvar-list
+                               (cons t tvar-list))]))])
+    
+    (let* ([t (apply-subst-to-type type subst)]
+           [tvar-list (find-tvar t null)])
+      (if (null? tvar-list)
+          t ;; if no tvar found, return type directly
+          (type-scheme tvar-list t)))))
+
+
+(define (instantiate-type-scheme type-schm) ;; instantiate type-scheme
+  (let ([subst (make-hash)])
+    (match type-schm
+      [(type-scheme tvar-list type)
+       (map (λ (tvar)
+              (hash-set! subst tvar (fresh-type-var)))
+            tvar-list)
+       (apply-subst-to-type type subst)])))
 
 
 ;; insert typed-lhs = type-rhs into subst return 'ok

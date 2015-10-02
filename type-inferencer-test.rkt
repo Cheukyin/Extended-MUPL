@@ -214,7 +214,7 @@
                                                                         (var "f1"))))))
                          )
               
-              (test-case "call functions defined elsewhere"
+              (test-case "call functions defined elsewhere" ;; call of this kind doesn't support polymorphism
                          (check-equal? (cons 'ok (-> (list (-> (list (int-type))
                                                                (int-type)))
                                                      (-> (list (int-type))
@@ -256,6 +256,38 @@
                                                                                (int 1)))))
                                                      (call (var "f3") ;; args types inconsistency
                                                            (var "f2")))))
+                         (check-equal? (cons 'ok (int-type))
+                                       (type-of (call (fun "rec" ("n")
+                                                           (if-then-else (isequal (var "n")
+                                                                                  (int 0))
+                                                                         (int 1)
+                                                                         (call (var "rec") (add (var "n")
+                                                                                                (int -1)))))
+                                                      (int 4))))
+                         )
+              
+              (test-case "call anonymous function, let semantics"
+                         (check-equal? (cons 'ok (int-type))
+                                       (type-of (mlet (["x" (int 3)]
+                                                       ["f" (fun #f ("x") (add (var "x") (int 1)))])
+                                                      (call (fun #f ("w")
+                                                                 (call (var "w") (var "x"))) 
+                                                            (var "f")))))
+                         (check-equal? (cons 'ok (int-type)) ;; let polymorphism
+                                       (type-of (mlet (["x" (int 3)]
+                                                       ["fn" (fun #f ("f")
+                                                                  (var "f"))])
+                                                      (mlet (["f" (call (var "fn")
+                                                                        (var "fn"))])
+                                                            (if-then-else (call (var "f") 
+                                                                                (isaunit (aunit)))
+                                                                          (call (var "f") (int 3))
+                                                                          (call (var "f") (int 4)))))))
+                         (check-equal? (cons 'ok (int-type))
+                                       (type-of (call (fun #f ("x")
+                                                           (add (var "x")
+                                                                (int 1)))
+                                                      (int 3))))
                          )
               ))
 
