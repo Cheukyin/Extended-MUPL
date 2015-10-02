@@ -3,6 +3,13 @@
 (require "type-struct.rkt")
 (provide type-of-under-env-subst)
 
+
+;; TODO
+;; try-catch, raise
+;; apair, rescursive data type
+;; call/cc can't return continuation, how to generize it ?
+
+
 ;; env is a list of hash-table,
 ;; subst for substition, is a hash-table( key is type-var, value is its concrete type)
 ;; Caveat: this proc has side effect on subst
@@ -190,6 +197,28 @@
                                  val-list)]
              [t-result (fresh-type-var)]) ;; type calling result
          (unifier fn-t (-> val-type-list t-result) subst exp kont) ;; fn-t = val-type-list -> t-result
+         t-result)]
+      
+      
+      ;; call-cc
+      ;; fn: (t1 -> t2) -> t1
+      ;; -->
+      ;; t1
+      ;; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ;; I think the type of the continuation captured should be generized
+      ;; but if generized, then some obvious type error will be permitted
+      ;; such as (+ 1 (call/cc (λ (k) (k 'T))))
+      ;; maybe it's undecidable?
+      ;; waited to be solved
+      ;; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      [(call-cc fn)
+       (let* ([t-result (fresh-type-var)]
+              [fn-arg-t (list (-> (list t-result)
+                                  (fresh-type-var)))]
+              [fn-result-t t-result]
+              [fn-t (_type_of fn env kont)])
+         (unifier fn-t (-> fn-arg-t fn-result-t) 
+                  subst exp kont)
          t-result)]
       
       

@@ -329,6 +329,34 @@
                                                                                       (var "x"))))))
                                               (int 8))))
                          )
+              
+              (test-case "call-cc"
+                         (check-equal? (cons 'ok (int-type))
+                                       (type-of (add (int 1)
+                                                     (call-cc (fun #f ("k")
+                                                                   (add (int 2)
+                                                                        (int 3)))))))
+                         (check-equal? (cons 'error (cons (add (int 1)
+                                                               (call-cc (fun #f ("k")
+                                                                             (call (var "k") (bool T)))))
+                                                          (cons (bool-type) (int-type))))
+                                       (type-of (add (int 1)
+                                                     (call-cc (fun #f ("k")
+                                                                   (call (var "k") (bool T)))))))
+                         ;; occurrence violation, I think the Kont captured should be generized
+                         ;; but if generized, then some obvious type error will be permitted
+                         ;; such as (+ 1 (call/cc (λ (k) (k 'T))))
+                         ;; maybe it's undecidable?
+                         (check-equal? (cons 'error (cons (call-cc (fun #f ("k")
+                                                                        (var "k")))
+                                                          (cons (type-var 1)
+                                                                (-> (list (type-var 1))
+                                                                    (type-var 2)))))
+                                       (adjust-type
+                                        (type-of (call (call-cc (fun #f ("k")
+                                                                     (var "k")))
+                                                       (int 3)))))
+                         )
               ))
 
 (run-tests MUPL-Type-Inferencer-TESTS)
