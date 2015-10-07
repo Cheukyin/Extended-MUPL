@@ -7,6 +7,7 @@
 ;; TODO
 ;; try-catch, raise
 ;; apair, rescursive data type
+;; add dummy type that will never cause error
 ;; call/cc can't return continuation, how to generize it ?
 
 
